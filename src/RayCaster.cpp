@@ -1,13 +1,17 @@
 #include "RayCaster.hpp"
 #include <cmath>
-
+#include <cstdint>
 RayCaster::RayCaster(int screenWidth, int screenHeight)
+    : frameTexture(sf::Vector2u(static_cast<unsigned int>(screenWidth), 
+                 static_cast<unsigned int>(screenHeight))),
+      frameSprite(frameTexture)  // Initialize sprite with texture
 {
-    frameBuffer.create(screenWidth, screenHeight, sf::Color::Black);
-    frameTexture.create(screenWidth, screenHeight);
-    frameSprite.setTexture(frameTexture);
+    // The rest of your constructor
+    frameBuffer = sf::Image(sf::Vector2u(static_cast<unsigned int>(screenWidth), 
+                          static_cast<unsigned int>(screenHeight)), 
+                          sf::Color::Black);
     
-    // Initialize wall colors (for different wall types)
+    // Initialize wall colors
     wallColors = {
         sf::Color::White,         // Not used (wall type 0 is empty space)
         sf::Color(220, 100, 100), // Wall type 1 (red)
@@ -31,7 +35,7 @@ void RayCaster::castRays(const Player& player, const Map& map)
     {
         for (int y = 0; y < screenHeight; y++)
         {
-            frameBuffer.setPixel(x, y, sf::Color::Black);
+            frameBuffer.setPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y)}, sf::Color::Black);
         }
     }
     
@@ -44,7 +48,7 @@ void RayCaster::castRays(const Player& player, const Map& map)
             sf::Color ceilingColor(50, 50, 70);
             for (int x = 0; x < screenWidth; x++)
             {
-                frameBuffer.setPixel(x, y, ceilingColor);
+                frameBuffer.setPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y)}, ceilingColor);
             }
         }
         else
@@ -53,7 +57,7 @@ void RayCaster::castRays(const Player& player, const Map& map)
             sf::Color floorColor(70, 70, 50);
             for (int x = 0; x < screenWidth; x++)
             {
-                frameBuffer.setPixel(x, y, floorColor);
+                frameBuffer.setPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y)}, floorColor);
             }
         }
     }
@@ -123,4 +127,71 @@ void RayCaster::castRays(const Player& player, const Map& map)
             }
             else
             {
-                sideDist.y += deltaDist.y
+                sideDist.y += deltaDist.y;
+                mapY += stepY;
+                side = 1;
+            }
+            
+            // Check if ray has hit a wall
+            wallType = map.getValueAt(mapX, mapY);
+            if (wallType > 0)
+            {
+                hit = true;
+            }
+        }
+        
+        // Calculate distance projected on camera direction
+        float perpWallDist;
+        if (side == 0)
+        {
+            perpWallDist = (mapX - pos.x + (1 - stepX) / 2) / rayDir.x;
+        }
+        else
+        {
+            perpWallDist = (mapY - pos.y + (1 - stepY) / 2) / rayDir.y;
+        }
+        
+        // Calculate height of line to draw on screen
+        int lineHeight = static_cast<int>(screenHeight / perpWallDist);
+        
+        // Calculate lowest and highest pixel to fill in current stripe
+        int drawStart = -lineHeight / 2 + screenHeight / 2;
+        if (drawStart < 0) drawStart = 0;
+        
+        int drawEnd = lineHeight / 2 + screenHeight / 2;
+        if (drawEnd >= screenHeight) drawEnd = screenHeight - 1;
+        
+        // Choose wall color based on wall type
+        sf::Color color;
+        if (wallType < static_cast<int>(wallColors.size()))
+        {
+            color = wallColors[wallType];
+        }
+        else
+        {
+            color = sf::Color::Magenta; // Default for unknown wall types
+        }
+        
+        // Make color darker for y-sides
+        if (side == 1)
+        {
+            color.r = static_cast<std::uint8_t>(static_cast<float>(color.r) * 0.7f);
+            color.g = static_cast<std::uint8_t>(static_cast<float>(color.g) * 0.7f);
+            color.b = static_cast<std::uint8_t>(static_cast<float>(color.b) * 0.7f);
+        }
+        
+        // Draw the pixels of the stripe as a vertical line
+        for (int y = drawStart; y < drawEnd; y++)
+        {
+            frameBuffer.setPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y)}, color);
+        }
+    }
+    
+    // Update the texture with our pixel data
+    frameTexture.update(frameBuffer);
+}
+
+void RayCaster::draw(sf::RenderWindow& window)
+{
+    window.draw(frameSprite);
+}

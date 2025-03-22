@@ -15,22 +15,22 @@ Player::Player()
 void Player::handleInput(float deltaTime, const sf::Keyboard::Key pressedKeys[])
 {
     // Move forward
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W))
     {
         position.x += direction.x * moveSpeed * deltaTime;
         position.y += direction.y * moveSpeed * deltaTime;
     }
     
     // Move backward
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S))
     {
         position.x -= direction.x * moveSpeed * deltaTime;
         position.y -= direction.y * moveSpeed * deltaTime;
     }
     
     // Rotate left
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::A) || 
-        sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A) || 
+        sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left))
     {
         float rotSpeed = this->rotSpeed * deltaTime;
         float oldDirX = direction.x;
@@ -43,8 +43,8 @@ void Player::handleInput(float deltaTime, const sf::Keyboard::Key pressedKeys[])
     }
     
     // Rotate right
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::D) || 
-        sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D) || 
+        sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right))
     {
         float rotSpeed = -this->rotSpeed * deltaTime;
         float oldDirX = direction.x;

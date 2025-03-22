@@ -1,6 +1,7 @@
 // Map.hpp
 #pragma once
 #include <vector>
+#include <string>
 
 class Map
 {

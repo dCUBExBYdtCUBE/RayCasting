@@ -1,6 +1,7 @@
 // Player.hpp
 #pragma once
 #include <SFML/System/Vector2.hpp>
+#include <SFML/Window/Keyboard.hpp>
 
 class Player
 {

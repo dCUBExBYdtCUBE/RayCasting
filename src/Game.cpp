@@ -1,8 +1,10 @@
 // Game.cpp
 #include "Game.hpp"
+#include <SFML/Window/Event.hpp>
+#include <SFML/Graphics.hpp>
 
 Game::Game(int width, int height, const std::string& title)
-    : window(sf::VideoMode(width, height), title),
+    : window(sf::VideoMode({static_cast<unsigned int>(width), static_cast<unsigned int>(height)}), title),
       player(),
       map(20, 20),
       raycaster(width, height),
@@ -26,21 +28,21 @@ void Game::run()
 
 void Game::handleInput()
 {
-    sf::Event event;
-    while (window.pollEvent(event))
+    while (auto event = window.pollEvent())  // pollEvent() returns std::optional<sf::Event>
     {
-        if (event.type == sf::Event::Closed)
+        if (event->is<sf::Event::Closed>())
         {
             window.close();
             isRunning = false;
         }
     }
+
     
     // Pass keyboard state to player
     sf::Keyboard::Key pressedKeys[] = {
-        sf::Keyboard::W, sf::Keyboard::A,   
-        sf::Keyboard::S, sf::Keyboard::D,
-        sf::Keyboard::Left, sf::Keyboard::Right
+        sf::Keyboard::Key::W, sf::Keyboard::Key::A,
+        sf::Keyboard::Key::S, sf::Keyboard::Key::D,
+        sf::Keyboard::Key::Left, sf::Keyboard::Key::Right
     };
     player.handleInput(clock.getElapsedTime().asSeconds(), pressedKeys);
 }

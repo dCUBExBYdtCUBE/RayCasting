@@ -10,8 +10,3 @@ int main()
 }
 
 
-    void handleInput();
-    void update(float deltaTime);
-    void render();
-};
-
