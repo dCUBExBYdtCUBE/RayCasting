@@ -12,45 +12,50 @@ Player::Player()
 {
 }
 
-void Player::handleInput(float deltaTime, const sf::Keyboard::Key pressedKeys[])
-{
+void Player::handleInput(float deltaTime, const sf::Keyboard::Key pressedKeys[]) {
     // Move forward
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W))
-    {
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) {
         position.x += direction.x * moveSpeed * deltaTime;
         position.y += direction.y * moveSpeed * deltaTime;
     }
-    
+
     // Move backward
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S))
-    {
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) {
         position.x -= direction.x * moveSpeed * deltaTime;
         position.y -= direction.y * moveSpeed * deltaTime;
     }
-    
+
+    // Strafe left (move sideways to the left)
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) {
+        position.x -= plane.x * moveSpeed * deltaTime;
+        position.y -= plane.y * moveSpeed * deltaTime;
+    }
+
+    // Strafe right (move sideways to the right)
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) {
+        position.x += plane.x * moveSpeed * deltaTime;
+        position.y += plane.y * moveSpeed * deltaTime;
+    }
+
     // Rotate left
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A) || 
-        sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left))
-    {
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Left)) {
         float rotSpeed = this->rotSpeed * deltaTime;
         float oldDirX = direction.x;
         direction.x = direction.x * cos(rotSpeed) - direction.y * sin(rotSpeed);
         direction.y = oldDirX * sin(rotSpeed) + direction.y * cos(rotSpeed);
-        
+
         float oldPlaneX = plane.x;
         plane.x = plane.x * cos(rotSpeed) - plane.y * sin(rotSpeed);
         plane.y = oldPlaneX * sin(rotSpeed) + plane.y * cos(rotSpeed);
     }
-    
+
     // Rotate right
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D) || 
-        sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right))
-    {
+    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Right)) {
         float rotSpeed = -this->rotSpeed * deltaTime;
         float oldDirX = direction.x;
         direction.x = direction.x * cos(rotSpeed) - direction.y * sin(rotSpeed);
         direction.y = oldDirX * sin(rotSpeed) + direction.y * cos(rotSpeed);
-        
+
         float oldPlaneX = plane.x;
         plane.x = plane.x * cos(rotSpeed) - plane.y * sin(rotSpeed);
         plane.y = oldPlaneX * sin(rotSpeed) + plane.y * cos(rotSpeed);
