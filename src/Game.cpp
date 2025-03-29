@@ -44,7 +44,7 @@ void Game::handleInput()
         sf::Keyboard::Key::S, sf::Keyboard::Key::D,
         sf::Keyboard::Key::Left, sf::Keyboard::Key::Right
     };
-    player.handleInput(clock.getElapsedTime().asSeconds(), pressedKeys);
+    player.handleInput(clock.getElapsedTime().asSeconds(), pressedKeys, map);
 }
 
 void Game::update(float deltaTime)
