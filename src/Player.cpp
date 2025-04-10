@@ -9,7 +9,14 @@ Player::Player()
       direction(1.0f, 0.0f),  // Initially facing right (positive X)
       plane(0.0f, 0.66f),     // Field of view is 2 * atan(0.66/1.0) ~= 66°
       moveSpeed(2.5f),
-      rotSpeed(2.0f)
+      rotSpeed(2.0f),
+      isDashing(false),
+      dashDistance(5.0f),     // How far the dash will move the player
+      dashDuration(0.3f),     // How long the dash takes in seconds
+      dashTimer(0.0f),
+      dashCooldown(1.5f),     // Cooldown time between dashes in seconds
+      dashCooldownTimer(0.0f),
+      lastDashTriggered(false)
 {
 }
 
@@ -17,28 +24,51 @@ void Player::handleInput(float deltaTime, const sf::Keyboard::Key pressedKeys[],
     float moveStep = moveSpeed * deltaTime;
     sf::Vector2f newPosition = position;
     
-    // Move forward
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) {
-        newPosition.x += direction.x * moveStep;
-        newPosition.y += direction.y * moveStep;
+    // Check for dash input
+    bool shiftPressed = sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LShift) || 
+                        sf::Keyboard::isKeyPressed(sf::Keyboard::Key::RShift);
+    
+    // Trigger dash on key press (not held)
+    if (shiftPressed && !lastDashTriggered && dashCooldownTimer <= 0.0f && !isDashing) {
+        isDashing = true;
+        dashTimer = dashDuration;
+        // Store the current direction for the dash
+        dashDirection = direction;
+    }
+    lastDashTriggered = shiftPressed;
+    
+    // Regular movement if not dashing
+    if (!isDashing) {
+        // Move forward
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W)) {
+            newPosition.x += direction.x * moveStep;
+            newPosition.y += direction.y * moveStep;
+        }
+
+        // Move backward
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) {
+            newPosition.x -= direction.x * moveStep;
+            newPosition.y -= direction.y * moveStep;
+        }
+
+        // Strafe left (move sideways to the left)
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) {
+            newPosition.x -= plane.x * moveStep;
+            newPosition.y -= plane.y * moveStep;
+        }
+
+        // Strafe right (move sideways to the right)
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) {
+            newPosition.x += plane.x * moveStep;
+            newPosition.y += plane.y * moveStep;
+        }
     }
 
-    // Move backward
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) {
-        newPosition.x -= direction.x * moveStep;
-        newPosition.y -= direction.y * moveStep;
-    }
-
-    // Strafe left (move sideways to the left)
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A)) {
-        newPosition.x -= plane.x * moveStep;
-        newPosition.y -= plane.y * moveStep;
-    }
-
-    // Strafe right (move sideways to the right)
-    if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D)) {
-        newPosition.x += plane.x * moveStep;
-        newPosition.y += plane.y * moveStep;
+    // Apply dash movement if dashing
+    if (isDashing) {
+        float dashStep = (dashDistance / dashDuration) * deltaTime;
+        newPosition.x += dashDirection.x * dashStep;
+        newPosition.y += dashDirection.y * dashStep;
     }
 
     // Check for collisions and apply sliding behavior
@@ -71,42 +101,55 @@ void Player::handleInput(float deltaTime, const sf::Keyboard::Key pressedKeys[],
 
 void Player::update(float deltaTime)
 {
-    // Additional player updates can go here
+    // Update dash timer and state
+    if (isDashing) {
+        dashTimer -= deltaTime;
+        if (dashTimer <= 0.0f) {
+            isDashing = false;
+            dashCooldownTimer = dashCooldown;
+        }
+    }
+    
+    // Update cooldown timer
+    if (dashCooldownTimer > 0.0f) {
+        dashCooldownTimer -= deltaTime;
+    }
 }
 
 void Player::applyCollisionWithSliding(const sf::Vector2f& newPosition, const Map& map)
 {
-    // Collision buffer (keeps player from getting too close to walls)
     const float collisionBuffer = 0.2f;
-    
-    // Check X-axis movement independently
+
     sf::Vector2f xMovement = position;
     xMovement.x = newPosition.x;
-    
-    // Check if there's a wall in the X direction
+
     int gridPosX = static_cast<int>(xMovement.x + (xMovement.x > position.x ? collisionBuffer : -collisionBuffer));
     int gridPosY = static_cast<int>(position.y);
-    
-    // If no wall in X direction, allow X movement
+
     if (!map.isWall(gridPosX, gridPosY)) {
         position.x = xMovement.x;
+    } else if (isDashing) {
+        // End dash early if hitting a wall
+        isDashing = false;
+        dashTimer = 0.0f;
+        dashCooldownTimer = dashCooldown;
     }
-    
-    // Check Y-axis movement independently
+
     sf::Vector2f yMovement = position;
     yMovement.y = newPosition.y;
-    
-    // Check if there's a wall in the Y direction
+
     gridPosX = static_cast<int>(position.x);
     gridPosY = static_cast<int>(yMovement.y + (yMovement.y > position.y ? collisionBuffer : -collisionBuffer));
-    
-    // If no wall in Y direction, allow Y movement
+
     if (!map.isWall(gridPosX, gridPosY)) {
         position.y = yMovement.y;
+    } else if (isDashing) {
+        // End dash early if hitting a wall
+        isDashing = false;
+        dashTimer = 0.0f;
+        dashCooldownTimer = dashCooldown;
     }
     
-    // Additional corner checking to prevent clipping
-    // Check corners where player might be close to walls
     for (int checkX = -1; checkX <= 1; checkX += 2) {
         for (int checkY = -1; checkY <= 1; checkY += 2) {
             float cornerX = position.x + checkX * 0.2f;
@@ -122,6 +165,13 @@ void Player::applyCollisionWithSliding(const sf::Vector2f& newPosition, const Ma
                 }
                 if (cornerGridY != static_cast<int>(position.y)) {
                     position.y += (position.y < cornerGridY) ? -0.1f : 0.1f;
+                }
+                
+                // End dash if hitting a corner during dash
+                if (isDashing) {
+                    isDashing = false;
+                    dashTimer = 0.0f;
+                    dashCooldownTimer = dashCooldown;
                 }
             }
         }
@@ -141,4 +191,14 @@ sf::Vector2f Player::getDirection() const
 sf::Vector2f Player::getPlane() const
 {
     return plane;
+}
+
+bool Player::getIsDashing() const
+{
+    return isDashing;
+}
+
+float Player::getDashCooldownPercent() const
+{
+    return dashCooldownTimer / dashCooldown;
 }
