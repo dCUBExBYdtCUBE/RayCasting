@@ -25,6 +25,7 @@ private:
     bool lastDashTriggered;  // Used to detect single press vs. hold
     
     void applyCollisionWithSliding(const sf::Vector2f& newPosition, const Map& map);
+    int score = 0;
 
 public:
     Player();
@@ -33,6 +34,15 @@ public:
     sf::Vector2f getPosition() const;
     sf::Vector2f getDirection() const;
     sf::Vector2f getPlane() const;
+    void checkTargetHits(Player& player, Map& map);
+    void addScore(int points) {
+        score += points;
+        // Optional: add visual feedback when score changes
+    }
+    
+    int getScore() const {
+        return score;
+    }
     
     // Dash-related public methods
     bool getIsDashing() const;
