@@ -5,10 +5,13 @@
 RayCaster::RayCaster(int screenWidth, int screenHeight)
     : frameTexture(sf::Vector2u(static_cast<unsigned int>(screenWidth), 
                  static_cast<unsigned int>(screenHeight))),
-      frameSprite(frameTexture),  // Initialize sprite with texture
-      dashEffectIntensity(0.6f),  // Increased slightly for more pronounced effect
-      dashEffectSpeed(6.0f),      // Slowed down a bit to reduce visual noise
-      dashEffectTimer(0.0f)       // Timer for the dash effect animation
+      frameSprite(frameTexture),
+      dashEffectIntensity(0.8f),       // Increased for stronger effect
+      dashEffectSpeed(8.0f),           // Faster animation
+      dashEffectTimer(0.0f),
+      dashStartTime(0.0f),
+      dashDuration(0.4f),              // Total duration of dash effect
+      dashActive(false)
 {
     // The rest of your constructor
     frameBuffer = sf::Image(sf::Vector2u(static_cast<unsigned int>(screenWidth), 
@@ -16,15 +19,419 @@ RayCaster::RayCaster(int screenWidth, int screenHeight)
                           sf::Color::Black);
     
     // Initialize wall colors
-    wallColors = {
-        sf::Color::White,         // Not used (wall type 0 is empty space)
-        sf::Color(220, 100, 100), // Wall type 1 (red)
-        sf::Color(100, 220, 100), // Wall type 2 (green)
-        sf::Color(100, 100, 220), // Wall type 3 (blue)
-        sf::Color(220, 220, 100)  // Wall type 4 (yellow)
-    };
+    // Cyberpunk/Tron color scheme
+wallColors = {
+    sf::Color(10, 10, 30),      // Type 0: Dark blue-black for floor (usually not used)
+    sf::Color(0, 210, 255),     // Type 1: Bright cyan for standard walls
+    sf::Color(255, 0, 150),     // Type 2: Neon pink for energy walls
+    sf::Color(0, 255, 120),     // Type 3: Electric green for data streams
+    sf::Color(255, 230, 0)      // Type 4: Bright yellow (if you add another wall type)
+};
+    
+    // Initialize array for previous positions (for afterimages)
+    for (int i = 0; i < 5; i++) {
+        previousPlayerPositions.push_back(sf::Vector2f(0, 0));
+    }
 }
 
+SwordRenderer swordRenderer;
+// Add missing easing functions
+float RayCaster::easeInOutCubic(float t)
+{
+    return t < 0.5f ? 4.0f * t * t * t : 1.0f - std::pow(-2.0f * t + 2.0f, 3.0f) / 2.0f;
+}
+
+float RayCaster::easeOutQuart(float t) {
+    return 1.0f - std::pow(1.0f - t, 4.0f);
+}
+
+// Modified drawMovingSlash to accept the isHorizontal parameter
+void RayCaster::drawMovingSlash(float dashProgress, int screenWidth, int screenHeight, 
+    const sf::Vector2f& playerDir, bool isHorizontal)
+{
+// Calculate start and end points for the slash trajectory
+int startX, startY, endX, endY;
+
+if (isHorizontal) {
+// Horizontal slash - extend fully across the screen
+startY = screenHeight / 2;
+endY = screenHeight / 2;
+
+// Start from left or right based on player direction
+if (playerDir.x > 0) {
+startX = screenWidth * 0.05f;  // Start closer to the left edge
+endX = screenWidth * 0.95f;    // End closer to the right edge
+} else {
+startX = screenWidth * 0.95f;  // Start closer to the right edge
+endX = screenWidth * 0.05f;    // End closer to the left edge
+}
+} else {
+// Diagonal slash - extend further toward the corners
+startX = screenWidth * 0.05f;      // Start closer to the left edge
+startY = screenHeight * 0.05f;     // Start closer to the top edge
+endX = screenWidth * 0.95f;        // End closer to the right edge
+endY = screenHeight * 0.95f;       // End closer to the bottom edge
+
+// Calculate angle to determine diagonal direction
+float angle = std::atan2(playerDir.y, playerDir.x);
+
+// If player is facing more to the upper-right or lower-left
+if ((angle > -3.14f/4 && angle < 3.14f/4) || 
+(angle > 3.14f*3/4 || angle < -3.14f*3/4)) {
+std::swap(startY, endY);
+}
+}
+
+// Current position of slash based on progress
+float fCurrentX = startX + (endX - startX) * dashProgress;
+float fCurrentY = startY + (endY - startY) * dashProgress;
+int currentX = static_cast<int>(fCurrentX);
+int currentY = static_cast<int>(fCurrentY);
+
+
+// Calculate previous position for trail effect
+float trailLength = 0.2f; // How much of the progress represents the trail
+float trailStartProgress = std::max(0.0f, dashProgress - trailLength);
+int trailX = startX + static_cast<int>((endX - startX) * trailStartProgress);
+int trailY = startY + static_cast<int>((endY - startY) * trailStartProgress);
+
+// Colors for the slash
+std::vector<sf::Color> slashColors = {
+sf::Color(255, 255, 255),    // White core
+sf::Color(220, 255, 200),    // Light green
+sf::Color(150, 255, 100),    // Bright green
+sf::Color(80, 220, 50)       // Dark green edge
+};
+
+// Calculate slash direction vector
+float slashDirX = static_cast<float>(currentX - trailX);
+float slashDirY = static_cast<float>(currentY - trailY);
+float length = std::sqrt(slashDirX*slashDirX + slashDirY*slashDirY);
+
+if (length > 0) {
+slashDirX /= length;
+slashDirY /= length;
+}
+
+// Perpendicular vector for slash width
+float perpX = -slashDirY;
+float perpY = slashDirX;
+
+// Slash width increases in the middle of the dash for emphasis
+float widthMultiplier = 1.0f;
+if (dashProgress > 0.3f && dashProgress < 0.7f) {
+widthMultiplier = 1.5f - std::abs((dashProgress - 0.5f) * 5.0f);
+}
+
+// Base slash thickness
+float slashThickness = 25.0f * widthMultiplier;
+
+// Draw the main slash as a line from trail to current position
+// with perpendicular width to create a thick slash
+for (float t = 0; t <= 1.0f; t += 0.01f) {
+// Position along the slash line
+float x = trailX + (currentX - trailX) * t;
+float y = trailY + (currentY - trailY) * t;
+
+// Width varies along the slash - thicker at the leading edge
+float widthVariation = 0.6f + 0.4f * t; // Thicker at leading edge (t=1)
+float thickness = slashThickness * widthVariation;
+
+// Draw perpendicular to slash direction to create thickness
+for (float w = -thickness; w <= thickness; w += 0.5f) {
+int drawX = static_cast<int>(x + perpX * w);
+int drawY = static_cast<int>(y + perpY * w);
+
+if (drawX >= 0 && drawX < screenWidth && drawY >= 0 && drawY < screenHeight) {
+// Distance from center of slash line
+float dist = std::abs(w) / thickness;
+
+// Add slight variation based on position for more dynamic look
+dist += 0.1f * std::sin(t * 10.0f);
+dist = std::max(0.0f, std::min(1.0f, dist));
+
+// Select color based on distance from center
+int colorIdx = std::min(static_cast<int>(dist * slashColors.size()), 
+            static_cast<int>(slashColors.size() - 1));
+sf::Color slashColor = slashColors[colorIdx];
+
+// Fade based on distance from center and position in slash
+float fade = (1.0f - dist) * (0.7f + 0.3f * t); // Brighter at leading edge
+
+// Add slight pulse effect
+float pulse = 0.9f + 0.1f * std::sin(dashProgress * 20.0f + t * 10.0f);
+fade *= pulse;
+
+// Get current color and blend
+sf::Color currentColor = frameBuffer.getPixel({static_cast<unsigned int>(drawX), 
+                                  static_cast<unsigned int>(drawY)});
+
+// Blend method depends on distance from center
+sf::Color finalColor;
+if (dist < 0.3f) {
+// Core is more additive for brighter effect
+finalColor = sf::Color(
+static_cast<std::uint8_t>(std::min(255, currentColor.r + static_cast<int>(slashColor.r * fade))),
+static_cast<std::uint8_t>(std::min(255, currentColor.g + static_cast<int>(slashColor.g * fade))),
+static_cast<std::uint8_t>(std::min(255, currentColor.b + static_cast<int>(slashColor.b * fade)))
+);
+} else {
+// Outer parts use regular blend
+finalColor = sf::Color(
+static_cast<std::uint8_t>(currentColor.r * (1.0f - fade) + slashColor.r * fade),
+static_cast<std::uint8_t>(currentColor.g * (1.0f - fade) + slashColor.g * fade),
+static_cast<std::uint8_t>(currentColor.b * (1.0f - fade) + slashColor.b * fade)
+);
+}
+
+frameBuffer.setPixel({static_cast<unsigned int>(drawX), static_cast<unsigned int>(drawY)}, finalColor);
+}
+}
+}
+
+// Add bright flash at the leading edge of the slash
+float flashSize = 30.0f * widthMultiplier;
+for (float px = -flashSize; px <= flashSize; px += 0.5f) {
+for (float py = -flashSize; py <= flashSize; py += 0.5f) {
+int drawX = static_cast<int>(currentX + px);
+int drawY = static_cast<int>(currentY + py);
+
+if (drawX >= 0 && drawX < screenWidth && drawY >= 0 && drawY < screenHeight) {
+float dist = std::sqrt(px*px + py*py);
+if (dist <= flashSize) {
+float fade = (1.0f - dist/flashSize) * 0.7f;
+
+sf::Color flashColor(255, 255, 255);
+sf::Color currentColor = frameBuffer.getPixel({static_cast<unsigned int>(drawX), 
+                                      static_cast<unsigned int>(drawY)});
+
+// Additive blend for glow
+sf::Color finalColor = sf::Color(
+static_cast<std::uint8_t>(std::min(255, currentColor.r + static_cast<int>(flashColor.r * fade))),
+static_cast<std::uint8_t>(std::min(255, currentColor.g + static_cast<int>(flashColor.g * fade))),
+static_cast<std::uint8_t>(std::min(255, currentColor.b + static_cast<int>(flashColor.b * fade)))
+);
+
+frameBuffer.setPixel({static_cast<unsigned int>(drawX), 
+              static_cast<unsigned int>(drawY)}, finalColor);
+}}}}
+
+// Add trailing particles behind the slash
+int particleCount = 40;
+for (int i = 0; i < particleCount; i++) {
+// Random position along the trail
+float t = static_cast<float>(rand() % 100) / 100.0f; // 0 to 1
+
+// Position with slight random variation
+float particleX = trailX + (currentX - trailX) * t + (rand() % 40 - 20);
+float particleY = trailY + (currentY - trailY) * t + (rand() % 40 - 20);
+
+// Particle size decreases with distance from slash head
+float particleSize = 5.0f * (0.5f + 0.5f * t);
+
+// Draw particle
+for (float px = -particleSize; px <= particleSize; px += 0.5f) {
+for (float py = -particleSize; py <= particleSize; py += 0.5f) {
+int drawX = static_cast<int>(particleX + px);
+int drawY = static_cast<int>(particleY + py);
+
+if (drawX >= 0 && drawX < screenWidth && drawY >= 0 && drawY < screenHeight) {
+float dist = std::sqrt(px*px + py*py);
+if (dist <= particleSize) {
+float fade = (1.0f - dist/particleSize) * 0.5f * (0.5f + 0.5f * t);
+
+// Particle color - green
+sf::Color particleColor(150, 255, 100);
+sf::Color currentColor = frameBuffer.getPixel({static_cast<unsigned int>(drawX), 
+                                          static_cast<unsigned int>(drawY)});
+
+// Additive blend
+sf::Color finalColor = sf::Color(
+ static_cast<std::uint8_t>(std::min(255, currentColor.r + static_cast<int>(particleColor.r * fade))),
+ static_cast<std::uint8_t>(std::min(255, currentColor.g + static_cast<int>(particleColor.g * fade))),
+ static_cast<std::uint8_t>(std::min(255, currentColor.b + static_cast<int>(particleColor.b * fade)))
+);
+
+frameBuffer.setPixel({static_cast<unsigned int>(drawX), 
+                  static_cast<unsigned int>(drawY)}, finalColor);
+}}}}}}
+
+// Make sure to update the applyDashEffect function's slash positions to match too
+void RayCaster::applyDashEffect(float dashProgress, float playerDirX, float playerDirY)
+{
+applySimpleMotionBlur(playerDirX, playerDirY, 0.3f);
+
+int screenWidth = frameBuffer.getSize().x;
+int screenHeight = frameBuffer.getSize().y;
+
+// Create a direction vector for the slash
+sf::Vector2f playerDir(playerDirX, playerDirY);
+
+// Determine slash orientation based on player direction
+bool isHorizontal = false;
+
+// Calculate the absolute angle of player direction
+float playerAngle = std::atan2(playerDirY, playerDirX);
+
+// If player is facing more horizontally than vertically, use horizontal slash
+if (std::abs(std::cos(playerAngle)) > 0.7f) {
+isHorizontal = true;
+}
+
+// Define slash phases based on progress
+if (dashProgress < 0.15f) {
+float intensity = dashProgress / 0.15f;
+
+// Edge glow code
+for (int x = 0; x < screenWidth; x++) {
+for (int y = 0; y < screenHeight; y++) {
+// Only affect pixels near the edges
+float edgeDistance = std::min(
+std::min(static_cast<float>(x), static_cast<float>(y)),
+std::min(static_cast<float>(screenWidth - x), static_cast<float>(screenHeight - y))
+);
+
+if (edgeDistance < 40) {
+float fade = (1.0f - edgeDistance / 40.0f) * intensity * 0.5f;
+sf::Color currentColor = frameBuffer.getPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y)});
+
+sf::Color newColor(
+static_cast<std::uint8_t>(std::min(255, currentColor.r + static_cast<int>(50 * fade))),
+static_cast<std::uint8_t>(std::min(255, currentColor.g + static_cast<int>(150 * fade))),
+static_cast<std::uint8_t>(std::min(255, currentColor.b + static_cast<int>(50 * fade)))
+);
+
+frameBuffer.setPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y)}, newColor);
+}
+}
+}
+
+// Start a faint moving slash - limit how far it goes
+float adjustedProgress = dashProgress / 0.15f * 0.2f; // Only move 20% into the animation
+drawMovingSlash(adjustedProgress, screenWidth, screenHeight, playerDir, isHorizontal);
+}
+else if (dashProgress < 0.85f) {
+// Main slash phase - draw the moving slash
+float adjustedProgress = 0.2f + ((dashProgress - 0.15f) / 0.7f) * 0.8f;
+drawMovingSlash(adjustedProgress, screenWidth, screenHeight, playerDir, isHorizontal);
+}
+else {
+// Fade out phase
+float fadeOutProgress = (dashProgress - 0.85f) / 0.15f;
+float fadeOutIntensity = 1.0f - fadeOutProgress;
+
+drawMovingSlash(1.0f, screenWidth, screenHeight, playerDir, isHorizontal);
+
+int particleCount = static_cast<int>(20 * fadeOutIntensity);
+
+int startX, startY, endX, endY;
+
+if (isHorizontal) {
+// For horizontal slash
+startY = screenHeight / 2;
+endY = screenHeight / 2;
+
+// Start from left or right based on player direction
+if (playerDirX > 0) {
+startX = screenWidth * 0.05f;
+endX = screenWidth * 0.95f;
+} else {
+startX = screenWidth * 0.95f;
+endX = screenWidth * 0.05f;
+}
+} else {
+// For diagonal slash
+startX = screenWidth * 0.05f;
+startY = screenHeight * 0.05f;
+endX = screenWidth * 0.95f;
+endY = screenHeight * 0.95f;
+
+// Adjust diagonal direction based on player direction
+float angle = std::atan2(playerDirY, playerDirX);
+
+// If player is facing more to the upper-right or lower-left
+if ((angle > -3.14f/4 && angle < 3.14f/4) || 
+(angle > 3.14f*3/4 || angle < -3.14f*3/4)) {
+std::swap(startY, endY);
+}
+}
+
+for (int i = 0; i < particleCount; i++) {
+// Position particles along the slash path
+float t = static_cast<float>(rand() % 100) / 100.0f; // 0 to 1
+
+// Interpolate between start and end positions
+int particleX = startX + static_cast<int>((endX - startX) * t) + (rand() % 60 - 30);
+int particleY = startY + static_cast<int>((endY - startY) * t) + (rand() % 60 - 30);
+
+// Particle size varies
+float sizeFactor = 0.7f + 0.3f * t;
+int particleSize = static_cast<int>(6 * fadeOutIntensity * sizeFactor);
+
+for (int px = -particleSize; px <= particleSize; px++) {
+for (int py = -particleSize; py <= particleSize; py++) {
+int x = particleX + px;
+int y = particleY + py;
+
+if (x >= 0 && x < screenWidth && y >= 0 && y < screenHeight) {
+float dist = std::sqrt(px*px + py*py);
+if (dist <= particleSize) {
+ float brightness = (1.0f - dist/particleSize) * fadeOutIntensity;
+ 
+ sf::Color currentColor = frameBuffer.getPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y)});
+ sf::Color particleColor(
+     static_cast<std::uint8_t>(std::min(255, currentColor.r + static_cast<int>(50 * brightness))),
+     static_cast<std::uint8_t>(std::min(255, currentColor.g + static_cast<int>(200 * brightness))),
+     static_cast<std::uint8_t>(std::min(255, currentColor.b + static_cast<int>(50 * brightness)))
+ );
+ 
+ frameBuffer.setPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y)}, particleColor);
+}}}}}}}
+
+// Simple motion blur that's less intensive
+void RayCaster::applySimpleMotionBlur(float dirX, float dirY, float strength)
+{
+    int screenWidth = frameBuffer.getSize().x;
+    int screenHeight = frameBuffer.getSize().y;
+    
+    // Create a copy of the framebuffer to read from
+    sf::Image frameBufferCopy = frameBuffer;
+    
+    // Apply a simple directional blur (less samples, simpler math)
+    for (int y = 0; y < screenHeight; y += 2) { // Process every other line for performance
+        for (int x = 0; x < screenWidth; x += 2) { // Process every other pixel for performance
+            sf::Color originalColor = frameBufferCopy.getPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y)});
+            
+            // Sample just one point in the direction of movement
+            int blurX = x - static_cast<int>(dirX * 3.0f * strength);
+            int blurY = y - static_cast<int>(dirY * 3.0f * strength);
+            
+            if (blurX >= 0 && blurX < screenWidth && blurY >= 0 && blurY < screenHeight) {
+                sf::Color blurColor = frameBufferCopy.getPixel({static_cast<unsigned int>(blurX), static_cast<unsigned int>(blurY)});
+                
+                // Simple blend
+                sf::Color finalColor(
+                    static_cast<std::uint8_t>((originalColor.r * 0.7f) + (blurColor.r * 0.3f)),
+                    static_cast<std::uint8_t>((originalColor.g * 0.7f) + (blurColor.g * 0.3f)),
+                    static_cast<std::uint8_t>((originalColor.b * 0.7f) + (blurColor.b * 0.3f))
+                );
+                
+                frameBuffer.setPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y)}, finalColor);
+                
+                // Also set the neighboring pixels to the same color (optimization)
+                if (x + 1 < screenWidth) {
+                    frameBuffer.setPixel({static_cast<unsigned int>(x + 1), static_cast<unsigned int>(y)}, finalColor);
+                }
+                if (y + 1 < screenHeight) {
+                    frameBuffer.setPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y + 1)}, finalColor);
+                }
+                if (x + 1 < screenWidth && y + 1 < screenHeight) {
+                    frameBuffer.setPixel({static_cast<unsigned int>(x + 1), static_cast<unsigned int>(y + 1)}, finalColor);
+                }
+            }
+        }
+    }
+}
 void RayCaster::castRays(const Player& player, const Map& map)
 {
     int screenWidth = frameBuffer.getSize().x;
@@ -33,37 +440,42 @@ void RayCaster::castRays(const Player& player, const Map& map)
     sf::Vector2f pos = player.getPosition();
     sf::Vector2f dir = player.getDirection();
     sf::Vector2f plane = player.getPlane();
+
+    static float pulseTimer = 0.0f;
+    pulseTimer += 0.016f; // Assuming approximately 60 FPS
+    
+    // Store player position for afterimages
+    // MODIFIED: Separate timer for position tracking
+    static float positionTrackTimer = 0.0f;
+    static float lastPositionTime = 0.0f;
+    
+    positionTrackTimer += 0.016f; // Update at 60 FPS
+    if (positionTrackTimer - lastPositionTime >= 0.05f) { // Store position every 50ms
+        // Shift previous positions
+        for (size_t i = previousPlayerPositions.size() - 1; i > 0; i--) {
+            previousPlayerPositions[i] = previousPlayerPositions[i - 1];
+        }
+        previousPlayerPositions[0] = pos;
+        lastPositionTime = positionTrackTimer; // Reset only the position tracking timer
+    }
     
     // Clear the framebuffer
-    for (int x = 0; x < screenWidth; x++)
-    {
-        for (int y = 0; y < screenHeight; y++)
-        {
+    for (int x = 0; x < screenWidth; x++) {
+        for (int y = 0; y < screenHeight; y++) {
             frameBuffer.setPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y)}, sf::Color::Black);
         }
     }
     
-    // Draw a simple floor/ceiling
-    for (int y = 0; y < screenHeight; y++)
-    {
-        if (y < screenHeight / 2)
-        {
-            // Ceiling - darker
-            sf::Color ceilingColor(50, 50, 70);
-            for (int x = 0; x < screenWidth; x++)
-            {
-                frameBuffer.setPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y)}, ceilingColor);
-            }
-        }
-        else
-        {
-            // Floor - lighter
-            sf::Color floorColor(70, 70, 50);
-            for (int x = 0; x < screenWidth; x++)
-            {
-                frameBuffer.setPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y)}, floorColor);
-            }
-        }
+    // Cyberpunk ceiling - dark with grid effect
+    sf::Color ceilingColor(5, 10, 25); // Very dark blue
+    if ((int)(pos.x * 2 + 0.5) % 2 == 0 || (int)(pos.y * 2 + 0.5) % 2 == 0) {
+        ceilingColor = sf::Color(10, 20, 40); // Slightly lighter for grid effect
+    }
+
+    // Cyberpunk floor - dark with grid lines
+    sf::Color floorColor(10, 15, 30); // Dark blue
+    if ((int)(pos.x * 2 + 0.5) % 2 == 0 || (int)(pos.y * 2 + 0.5) % 2 == 0) {
+        floorColor = sf::Color(0, 50, 80); // Brighter blue for grid lines
     }
     
     // Cast rays for each vertical column
@@ -115,10 +527,12 @@ void RayCaster::castRays(const Player& player, const Map& map)
             sideDist.y = (mapY + 1.0f - pos.y) * deltaDist.y;
         }
         
-        // Perform DDA (Digital Differential Analysis)
-        bool hit = false;   // Was a wall hit?
-        int side;           // Was a NS or a EW wall hit?
-        int wallType = 0;   // What type of wall was hit?
+        bool hit = false;      // Was a wall hit?
+        bool targetHit = false; // Was a target hit?
+        int side;              // Was a NS or a EW wall hit?
+        int wallType = 0;      // What type of wall was hit?
+        float targetDist = 0;  // Distance to target if hit
+        int targetX = 0, targetY = 0; 
         
         while (!hit)
         {
@@ -141,6 +555,18 @@ void RayCaster::castRays(const Player& player, const Map& map)
             if (wallType > 0)
             {
                 hit = true;
+            }
+            if (map.isTarget(mapX, mapY) && !targetHit) {
+                targetHit = true;
+                targetX = mapX;
+                targetY = mapY;
+                
+                // Calculate distance to target
+                if (side == 0) {
+                    targetDist = (mapX - pos.x + (1 - stepX) / 2) / rayDir.x;
+                } else {
+                    targetDist = (mapY - pos.y + (1 - stepY) / 2) / rayDir.y;
+                }
             }
         }
         
@@ -182,7 +608,12 @@ void RayCaster::castRays(const Player& player, const Map& map)
             color.r = static_cast<std::uint8_t>(static_cast<float>(color.r) * 0.7f);
             color.g = static_cast<std::uint8_t>(static_cast<float>(color.g) * 0.7f);
             color.b = static_cast<std::uint8_t>(static_cast<float>(color.b) * 0.7f);
-        }
+
+        float pulseEffect = 0.15f * sin(pulseTimer * 2.0f) + 0.85f;
+        color.r = static_cast<uint8_t>(std::min(255, int(color.r * pulseEffect)));
+        color.g = static_cast<uint8_t>(std::min(255, int(color.g * pulseEffect)));
+        color.b = static_cast<uint8_t>(std::min(255, int(color.b * pulseEffect)));
+                }
 
         // Apply a light green tinge if player is dashing (optimized - only modify the wall rendering)
         if (player.getIsDashing()) {
@@ -196,392 +627,145 @@ void RayCaster::castRays(const Player& player, const Map& map)
             color.r = static_cast<std::uint8_t>(std::min(255, color.r + static_cast<int>(20 * pulse)));
             color.b = static_cast<std::uint8_t>(std::min(255, color.b + static_cast<int>(20 * pulse)));
         }
+
+    for (int y = drawStart; y < drawEnd; y++) {
+        // Original wall color
+        sf::Color pixelColor = color;   
+        // Add glow effect based on distance from center of wall
+        float distFromCenter = std::abs((y - (drawStart + (drawEnd - drawStart) / 2.0f)) / (drawEnd - drawStart));
+        float glowIntensity = 0.3f * (1.0f - distFromCenter * distFromCenter);
         
-        // Draw the pixels of the stripe as a vertical line
-        for (int y = drawStart; y < drawEnd; y++)
-        {
-            frameBuffer.setPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y)}, color);
+        // Enhance the color's brightness for glow effect
+        pixelColor.r = static_cast<uint8_t>(std::min(255, int(pixelColor.r * (1 + glowIntensity))));
+        pixelColor.g = static_cast<uint8_t>(std::min(255, int(pixelColor.g * (1 + glowIntensity))));
+        pixelColor.b = static_cast<uint8_t>(std::min(255, int(pixelColor.b * (1 + glowIntensity))));
+        
+        frameBuffer.setPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y)}, pixelColor);
+    }
+    if (targetHit) {
+        // Calculate height of target to draw on screen
+        int targetHeight = static_cast<int>(screenHeight / targetDist);
+        
+        // Calculate lowest and highest pixel to fill for target
+        int targetDrawStart = -targetHeight / 2 + screenHeight / 2;
+        if (targetDrawStart < 0) targetDrawStart = 0;
+        
+        int targetDrawEnd = targetHeight / 2 + screenHeight / 2;
+        if (targetDrawEnd >= screenHeight) targetDrawEnd = screenHeight - 1;
+        
+        // Choose target color - use something eye-catching
+        sf::Color targetColor;
+        if (map.isHitTarget(targetX, targetY)) {
+            targetColor = sf::Color(100, 100, 100); // Gray for hit targets
+        } else {
+            // Pulsing effect for active targets
+            float targetPulse = 0.5f + 0.5f * sin(pulseTimer * 3.0f);
+            targetColor = sf::Color(
+                255, 
+                static_cast<uint8_t>(100 + 155 * targetPulse), 
+                0
+            ); // Orange/yellow glow
+        }
+        
+        // Make target appear as a vertical cylinder/column
+        for (int y = targetDrawStart; y < targetDrawEnd; y++) {
+            // Calculate vertical position on the target (0 to 1)
+            float targetVPos = (y - targetDrawStart) / static_cast<float>(targetDrawEnd - targetDrawStart);
+            
+            // Create a circular pattern on the target
+            float distFromCenter = std::abs(targetVPos - 0.5f) * 2.0f;
+            float circleEffect = 1.0f - distFromCenter * distFromCenter;
+            circleEffect = std::max(0.0f, circleEffect);
+            
+            // Apply circular pattern to color
+            sf::Color pixelColor = targetColor;
+            pixelColor.r = static_cast<uint8_t>(std::min(255, int(pixelColor.r * circleEffect)));
+            pixelColor.g = static_cast<uint8_t>(std::min(255, int(pixelColor.g * circleEffect)));
+            pixelColor.b = static_cast<uint8_t>(std::min(255, int(pixelColor.b * circleEffect)));
+            
+            // Only draw if the target is in front of the wall at this position
+            float wallDist = perpWallDist;
+            if (targetDist < wallDist || (wallDist == 0)) {
+                // Add point value number in the center of the target
+                if (targetVPos > 0.45f && targetVPos < 0.55f && circleEffect > 0.8f) {
+                    // Get point value
+                    int points = map.getTargetPoints(targetX, targetY);
+                    // Simple way to show the value - alternating colors based on point value
+                    if ((points / 10) % 2 == 0) {
+                        pixelColor = sf::Color::White;
+                    } else {
+                        pixelColor = sf::Color::Black;
+                    }
+                }
+                
+                frameBuffer.setPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y)}, pixelColor);
+            }
         }
     }
+
+    }
     
-    // Apply dash effect if player is dashing - using an optimized version
-    // In your castRays method, after all effects
-if (player.getIsDashing()) {
-    applyDashEffect(player);
-} else {
-    drawPlayerSword(player); // Only draw sword when not dashing
-}
+    // Apply dash effect if player is dashing
+    if (player.getIsDashing()) {
+        // Start a new dash if not already active
+        if (!dashActive) {
+            dashActive = true;
+            dashStartTime = dashEffectTimer;
+        }     
+        
+        // Calculate dash progress
+        float dashProgress = (dashEffectTimer - dashStartTime) / dashDuration*1.5f;
+        dashProgress = std::min(1.0f, dashProgress);
+        
+        // Get player direction for the dash effect
+        sf::Vector2f playerDir = player.getDirection();
+        
+        // Apply dash effects with the new signature
+        applyDashEffect(dashProgress, playerDir.x, playerDir.y);
+        
+        // ADDED: Debug visualization for dash progress
+        dashProgress = (dashEffectTimer - dashStartTime) / (dashDuration * 1.5f); // Multiply dashDuration by 1.5 to slow it down
+        dashProgress = std::min(1.0f, dashProgress); // Ensure it doesn't exceed 1.0
+        
+        // Draw debug bar
+        int debugX = 10;
+        int debugY = 10;
+        int debugWidth = 100;
+        int debugHeight = 10;
+        
+        // Draw progress bar background
+        for (int x = debugX; x < debugX + debugWidth; x++) {
+            for (int y = debugY; y < debugY + debugHeight; y++) {
+                frameBuffer.setPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y)}, sf::Color(50, 50, 50));
+            }
+        }
+        
+        // Draw progress bar fill
+        int fillWidth = static_cast<int>(dashProgress * debugWidth);
+        for (int x = debugX; x < debugX + fillWidth; x++) {
+            for (int y = debugY; y < debugY + debugHeight; y++) {
+                // Color based on phase
+                sf::Color phaseColor;
+                if (dashProgress < 0.2f) phaseColor = sf::Color::Red;
+                else if (dashProgress < 0.7f) phaseColor = sf::Color::Green;
+                else phaseColor = sf::Color::Blue;
+                
+                frameBuffer.setPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y)}, phaseColor);
+            }
+        }
+    } else {
+        // Reset dash status if player stops dashing
+        dashActive = false;
+        
+        // Only draw sword when not dashing
+        swordRenderer.draw(frameBuffer, player);
+    }
     
-    // Update the dash effect timer (even when not dashing, for smooth transitions)
+    // Update the dash effect timer regardless of dash state
     dashEffectTimer += 0.016f; // Assuming approximately 60 FPS
     
     // Update the texture with our pixel data
     frameTexture.update(frameBuffer);
-}
-
-// Add this method to RayCaster class
-// Add this method to RayCaster class
-void RayCaster::drawPlayerSword(const Player& player)
-{
-    int screenWidth = frameBuffer.getSize().x;
-    int screenHeight = frameBuffer.getSize().y;
-    
-    // Draw sword in bottom right corner
-    int swordWidth = screenWidth * 0.3f;  // Size of sword on screen
-    int swordHeight = screenHeight * 0.2f;
-    int swordPosX = screenWidth - swordWidth - 10;
-    int swordPosY = screenHeight - swordHeight - 10;
-    
-    // Draw simple sword shape
-    // Blade
-    for (int y = 0; y < swordHeight * 0.7f; y++) {
-        for (int x = swordWidth * 0.4f; x < swordWidth * 0.6f; x++) {
-            int px = swordPosX + x;
-            int py = swordPosY + y;
-            if (px >= 0 && px < screenWidth && py >= 0 && py < screenHeight) {
-                frameBuffer.setPixel({static_cast<unsigned int>(px), static_cast<unsigned int>(py)}, 
-                    sf::Color(220, 220, 220)); // Silver color
-            }
-        }
-    }
-    
-    // Hilt
-    for (int y = swordHeight * 0.7f; y < swordHeight * 0.9f; y++) {
-        for (int x = swordWidth * 0.3f; x < swordWidth * 0.7f; x++) {
-            int px = swordPosX + x;
-            int py = swordPosY + y;
-            if (px >= 0 && px < screenWidth && py >= 0 && py < screenHeight) {
-                frameBuffer.setPixel({static_cast<unsigned int>(px), static_cast<unsigned int>(py)}, 
-                    sf::Color(180, 130, 40)); // Gold-ish color
-            }
-        }
-    }
-    
-    // Pommel
-    for (int y = swordHeight * 0.9f; y < swordHeight; y++) {
-        for (int x = swordWidth * 0.4f; x < swordWidth * 0.6f; x++) {
-            int px = swordPosX + x;
-            int py = swordPosY + y;
-            if (px >= 0 && px < screenWidth && py >= 0 && py < screenHeight) {
-                frameBuffer.setPixel({static_cast<unsigned int>(px), static_cast<unsigned int>(py)}, 
-                    sf::Color(200, 150, 50)); // Dark gold color
-            }
-        }
-    }
-}
-
-void RayCaster::applyDashEffect(const Player& player)
-{
-    int screenWidth = frameBuffer.getSize().x;
-    int screenHeight = frameBuffer.getSize().y;
-    
-    // Center point for the slash effect
-    int centerX = screenWidth / 2;
-    int centerY = screenHeight / 2;
-    
-    // Get player's movement direction for slash orientation
-    sf::Vector2f playerDir = player.getDirection();
-    float playerDirX = playerDir.x;
-    float playerDirY = playerDir.y;
-    float playerAngle = std::atan2(playerDirY, playerDirX);
-    
-    // Adjust effect strength based on dash intensity
-    float effectStrength = dashEffectIntensity * 2.0f * (0.8f + 0.4f * std::sin(dashEffectTimer * dashEffectSpeed * 1.5f));
-    
-    // Apply motion blur first (subtle streaking in the direction of movement)
-    applyMotionBlur(playerDirX, playerDirY, effectStrength);
-    
-    // Define colors for the slash - green palette similar to Genji's dragon blade
-    // Modify the slashColors in applyDashEffect
-const std::vector<sf::Color> slashColors = {
-    sf::Color(255, 255, 255),  // White core
-    sf::Color(200, 255, 230),  // Light teal 
-    sf::Color(140, 255, 180),  // Bright teal green
-    sf::Color(80, 230, 120)    // Medium green
-};
-    
-    // Calculate slash angle - perpendicular to movement for a slashing effect
-    // Add oscillation for dynamic slash angle
-    float slashAngle = playerAngle + 1.57f + 0.2f * std::sin(dashEffectTimer * 3.0f);
-    
-    // Draw the main slash
-    drawSlashEffect(centerX, centerY, slashAngle, slashColors, effectStrength);
-}
-
-// Add this method to create afterimages during dash
-
-
-// Apply motion blur in the direction of movement
-void RayCaster::applyMotionBlur(float dirX, float dirY, float strength)
-{
-    int screenWidth = frameBuffer.getSize().x;
-    int screenHeight = frameBuffer.getSize().y;
-    
-    // Create a copy of the framebuffer for reading (to avoid artifacts)
-    sf::Image frameBufferCopy = frameBuffer;
-    
-    // Parameters for blur amount
-    const int maxBlurDistance = std::max(4, static_cast<int>(strength * 12.0f));
-    const float blurStrength = std::min(0.7f, strength * 0.4f);
-    
-    // Apply directional blur
-    for (int y = 0; y < screenHeight; y++) {
-        for (int x = 0; x < screenWidth; x++) {
-            // Get original color
-            sf::Color originalColor = frameBufferCopy.getPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y)});
-            sf::Color blurredColor = originalColor;
-            float totalWeight = 1.0f;
-            
-            // Sample in the direction of movement
-            for (int i = 1; i <= maxBlurDistance; i++) {
-                // Calculate sample position in direction of movement
-                int sampleX = x - static_cast<int>(dirX * i);
-                int sampleY = y - static_cast<int>(dirY * i);
-                
-                // Check bounds
-                if (sampleX >= 0 && sampleX < screenWidth && 
-                    sampleY >= 0 && sampleY < screenHeight) {
-                    
-                    // Weight decreases with distance
-                    float weight = blurStrength * (1.0f - static_cast<float>(i) / maxBlurDistance);
-                    totalWeight += weight;
-                    
-                    // Get sample color and blend
-                    sf::Color sampleColor = frameBufferCopy.getPixel({static_cast<unsigned int>(sampleX), static_cast<unsigned int>(sampleY)});
-                    blurredColor.r += static_cast<std::uint8_t>(sampleColor.r * weight);
-                    blurredColor.g += static_cast<std::uint8_t>(sampleColor.g * weight);
-                    blurredColor.b += static_cast<std::uint8_t>(sampleColor.b * weight);
-                }
-            }
-            
-            // Normalize colors
-            blurredColor.r = static_cast<std::uint8_t>(blurredColor.r / totalWeight);
-            blurredColor.g = static_cast<std::uint8_t>(blurredColor.g / totalWeight);
-            blurredColor.b = static_cast<std::uint8_t>(blurredColor.b / totalWeight);
-            
-            // Write back to buffer
-            frameBuffer.setPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y)}, blurredColor);
-        }
-    }
-}
-
-// Draw the Genji-style slash effect
-void RayCaster::drawSlashEffect(int centerX, int centerY, float angle, const std::vector<sf::Color>& colors, float strength)
-{
-    int screenWidth = frameBuffer.getSize().x;
-    int screenHeight = frameBuffer.getSize().y;
-    
-    // Slash parameters
-    float slashLength = std::min(screenWidth, screenHeight) * 0.9f * strength;
-    float slashWidth = std::min(screenWidth, screenHeight) * 0.15f * strength;
-    
-    // Calculate the slash direction vectors
-    float slashDirX = std::cos(angle);
-    float slashDirY = std::sin(angle);
-    
-    // Calculate perpendicular vectors for slash width
-    float perpX = -slashDirY;
-    float perpY = slashDirX;
-    
-    // Create a dynamic slash shape with curve
-    const int slashSegments = 20;
-    
-    // Calculate slash animation progress (0 to 1)
-    float animProgress = std::min(1.0f, dashEffectTimer / 0.2f);
-    
-    // Dynamic slash path parameters
-    std::vector<std::pair<float, float>> slashPath;
-    for (int i = 0; i <= slashSegments; i++) {
-        float t = static_cast<float>(i) / slashSegments;
-        
-        // Apply animation timing - quick slash appearance
-        float animatedT = t;
-        if (animProgress < 1.0f) {
-            animatedT = t * animProgress;
-        }
-        
-        // Curved slash path - sweep from right to left (or based on angle)
-        float pathX = centerX + (slashDirX * slashLength * (animatedT - 0.5f));
-        float pathY = centerY + (slashDirY * slashLength * (animatedT - 0.5f));
-        
-        // Add some curve to the slash path
-        float curveAmount = slashWidth * 0.6f * std::sin(t * 3.14159f);
-        pathX += perpX * curveAmount;
-        pathY += perpY * curveAmount;
-        
-        slashPath.push_back({pathX, pathY});
-    }
-    
-    // Draw the slash with dynamic thickness
-    for (size_t i = 0; i < slashPath.size() - 1; i++) {
-        float x1 = slashPath[i].first;
-        float y1 = slashPath[i].second;
-        float x2 = slashPath[i + 1].first;
-        float y2 = slashPath[i + 1].second;
-        
-        // Calculate position along slash (0 to 1)
-        float posRatio = static_cast<float>(i) / (slashPath.size() - 2);
-        
-        // Vary thickness - thicker in middle, thinner at ends
-        float thicknessVariation = std::sin(posRatio * 3.14159f);
-        float segmentWidth = slashWidth * (0.2f + 0.8f * thicknessVariation);
-        
-        // Draw thick line segment with colored gradient
-        drawColoredSlashSegment(x1, y1, x2, y2, segmentWidth, colors, posRatio);
-    }
-    
-    // Add highlight details to make it pop
-    addSlashHighlights(slashPath, slashWidth, colors);
-}
-
-// Draw a single segment of the slash with color gradient
-void RayCaster::drawColoredSlashSegment(float x1, float y1, float x2, float y2, float width, 
-                                    const std::vector<sf::Color>& colors, float posRatio)
-{
-    int screenWidth = frameBuffer.getSize().x;
-    int screenHeight = frameBuffer.getSize().y;
-    
-    // Direction vector of this segment
-    float dirX = x2 - x1;
-    float dirY = y2 - y1;
-    float segmentLength = std::sqrt(dirX * dirX + dirY * dirY);
-    
-    // Normalize direction
-    if (segmentLength > 0) {
-        dirX /= segmentLength;
-        dirY /= segmentLength;
-    }
-    
-    // Perpendicular vector for width
-    float perpX = -dirY;
-    float perpY = dirX;
-    
-    // Draw the line with Bresenham's algorithm
-    int ix1 = static_cast<int>(x1);
-    int iy1 = static_cast<int>(y1);
-    int ix2 = static_cast<int>(x2);
-    int iy2 = static_cast<int>(y2);
-    
-    int deltaX = std::abs(ix2 - ix1);
-    int deltaY = std::abs(iy2 - iy1);
-    int signX = ix1 < ix2 ? 1 : -1;
-    int signY = iy1 < iy2 ? 1 : -1;
-    int error = deltaX - deltaY;
-    int x = ix1;
-    int y = iy1;
-    
-    while (x != ix2 || y != iy2) {
-        // Calculate gradient colors based on position
-        sf::Color innerColor = colors[0]; // Brightest inner color
-        sf::Color outerColor = colors[colors.size() - 1]; // Darkest outer color
-        
-        // Draw perpendicular line to create thickness
-        for (float w = -width; w <= width; w += 0.5f) {
-            int px = static_cast<int>(x + perpX * w);
-            int py = static_cast<int>(y + perpY * w);
-            
-            if (px >= 0 && px < screenWidth && py >= 0 && py < screenHeight) {
-                // Calculate fade based on distance from center of slash
-                float widthRatio = std::abs(w) / width;
-                float colorIndex = widthRatio * (colors.size() - 1);
-                int colorIdx1 = static_cast<int>(colorIndex);
-                int colorIdx2 = std::min(colorIdx1 + 1, static_cast<int>(colors.size() - 1));
-                float colorBlend = colorIndex - colorIdx1;
-                
-                // Blend between adjacent colors
-                sf::Color segmentColor(
-                    static_cast<std::uint8_t>(colors[colorIdx1].r * (1 - colorBlend) + colors[colorIdx2].r * colorBlend),
-                    static_cast<std::uint8_t>(colors[colorIdx1].g * (1 - colorBlend) + colors[colorIdx2].g * colorBlend),
-                    static_cast<std::uint8_t>(colors[colorIdx1].b * (1 - colorBlend) + colors[colorIdx2].b * colorBlend)
-                );
-                
-                // Add brightness variation along the length of slash for shine effect
-                float shineFactor = 1.0f + 0.3f * std::sin(posRatio * 6.28f + dashEffectTimer * 5.0f);
-                segmentColor.r = static_cast<std::uint8_t>(std::min(255, static_cast<int>(segmentColor.r * shineFactor)));
-                segmentColor.g = static_cast<std::uint8_t>(std::min(255, static_cast<int>(segmentColor.g * shineFactor)));
-                segmentColor.b = static_cast<std::uint8_t>(std::min(255, static_cast<int>(segmentColor.b * shineFactor)));
-                
-                // Apply fade based on width position - smoother edges
-                float fade = 1.0f - std::pow(widthRatio, 0.7f);
-                
-                // Get current pixel color and blend
-                sf::Color currentColor = frameBuffer.getPixel({static_cast<unsigned int>(px), static_cast<unsigned int>(py)});
-                
-                sf::Color finalColor(
-                    static_cast<std::uint8_t>(currentColor.r * (1.0f - fade) + segmentColor.r * fade),
-                    static_cast<std::uint8_t>(currentColor.g * (1.0f - fade) + segmentColor.g * fade),
-                    static_cast<std::uint8_t>(currentColor.b * (1.0f - fade) + segmentColor.b * fade)
-                );
-                
-                frameBuffer.setPixel({static_cast<unsigned int>(px), static_cast<unsigned int>(py)}, finalColor);
-            }
-        }
-        
-        // Bresenham's algorithm step
-        int e2 = 2 * error;
-        if (e2 > -deltaY) {
-            error -= deltaY;
-            x += signX;
-        }
-        if (e2 < deltaX) {
-            error += deltaX;
-            y += signY;
-        }
-    }
-}
-
-// Add additional highlight details to make slash more dynamic
-void RayCaster::addSlashHighlights(const std::vector<std::pair<float, float>>& slashPath, float width, const std::vector<sf::Color>& colors)
-{
-    int screenWidth = frameBuffer.getSize().x;
-    int screenHeight = frameBuffer.getSize().y;
-    
-    // Number of highlight points to add
-    const int numHighlights = 5;
-    
-    // Add some streaking light particles for dramatic effect
-    for (int h = 0; h < numHighlights; h++) {
-        // Pick random position along slash path
-        int pathIdx = rand() % (slashPath.size() - 1);
-        float centerX = slashPath[pathIdx].first;
-        float centerY = slashPath[pathIdx].second;
-        
-        // Create highlight glow
-        float glowSize = width * (0.3f + 0.7f * static_cast<float>(rand()) / RAND_MAX);
-        sf::Color glowColor = colors[0]; // Brightest color
-        
-        // Add some variation to glow color
-        float colorVar = 0.9f + 0.2f * static_cast<float>(rand()) / RAND_MAX;
-        glowColor.r = static_cast<std::uint8_t>(std::min(255, static_cast<int>(glowColor.r * colorVar)));
-        glowColor.g = static_cast<std::uint8_t>(std::min(255, static_cast<int>(glowColor.g * colorVar)));
-        glowColor.b = static_cast<std::uint8_t>(std::min(255, static_cast<int>(glowColor.b * colorVar)));
-        
-        // Draw the glow
-        for (int x = static_cast<int>(centerX - glowSize); x <= static_cast<int>(centerX + glowSize); x++) {
-            for (int y = static_cast<int>(centerY - glowSize); y <= static_cast<int>(centerY + glowSize); y++) {
-                if (x >= 0 && x < screenWidth && y >= 0 && y < screenHeight) {
-                    float dx = x - centerX;
-                    float dy = y - centerY;
-                    float distSq = dx*dx + dy*dy;
-                    
-                    if (distSq <= glowSize * glowSize) {
-                        float fade = 1.0f - std::sqrt(distSq) / glowSize;
-                        fade = std::pow(fade, 0.5f) * 0.9f;
-                        
-                        sf::Color currentColor = frameBuffer.getPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y)});
-                        
-                        sf::Color finalColor(
-                            static_cast<std::uint8_t>(currentColor.r * (1.0f - fade) + glowColor.r * fade),
-                            static_cast<std::uint8_t>(currentColor.g * (1.0f - fade) + glowColor.g * fade),
-                            static_cast<std::uint8_t>(currentColor.b * (1.0f - fade) + glowColor.b * fade)
-                        );
-                        
-                        frameBuffer.setPixel({static_cast<unsigned int>(x), static_cast<unsigned int>(y)}, finalColor);
-                    }
-                }
-            }
-        }
-    }
 }
 
 void RayCaster::draw(sf::RenderWindow& window)
