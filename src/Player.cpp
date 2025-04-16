@@ -20,6 +20,38 @@ Player::Player()
 {
 }
 
+void Player::checkTargetHits(Player& player, Map& map) {
+    // Only check for hits if the player is currently dashing
+    if (player.getIsDashing()) {
+        // Get player position
+        sf::Vector2f pos = player.getPosition();
+        
+        // Check targets within a small radius around the player
+        float hitRadius = 1.0f; // Adjust this value based on testing
+        
+        // Get all targets
+        const std::vector<Target>& targets = map.getTargets();
+        
+        for (const auto& target : targets) {
+            // Calculate distance from player to target
+            float dx = pos.x - target.x;
+            float dy = pos.y - target.y;
+            float distSquared = dx*dx + dy*dy;
+            
+            // If player is close enough and target not hit yet, register a hit
+            if (distSquared < hitRadius*hitRadius) {
+                if (map.hitTarget(target.x, target.y)) {
+                    // Target was hit successfully - add points, play sound, etc.
+                    player.addScore(map.getTargetPoints(target.x, target.y));
+                    
+                    // Optional: add visual or audio feedback
+                    // playSound("target_hit.wav");
+                }
+            }
+        }
+    }
+}
+
 void Player::handleInput(float deltaTime, const sf::Keyboard::Key pressedKeys[], const Map& map) {
     float moveStep = moveSpeed * deltaTime;
     sf::Vector2f newPosition = position;
