@@ -75,6 +75,7 @@ void Game::handleInput()
 }
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 void Game::update(float deltaTime)
 {
 
@@ -83,6 +84,8 @@ std::cout << "Current score: " << score << std::endl;
     player.update(deltaTime);
 
 =======
+=======
+>>>>>>> Stashed changes
 Game::~Game() {
     delete raycaster;
     delete textRenderer;
@@ -134,8 +137,11 @@ void Game::update(float deltaTime) {
     
     // Check for target hits and update score
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     const auto& hitTargets = raycaster.getHitTargets();
 =======
+=======
+>>>>>>> Stashed changes
     const auto& hitTargets = raycaster->getTargetHits();
     
     // Debug info

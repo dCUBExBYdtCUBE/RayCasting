@@ -44,6 +44,7 @@ public:
     
     // Update game state (player position, etc.) based on elapsed time
     void update(float deltaTime); // SRP: Updates the game state
+<<<<<<< Updated upstream
     
     void updateScore(int points);
     
@@ -55,9 +56,17 @@ public:
     void render();
 };
 =======
+=======
+    
+    // Render the current frame
+>>>>>>> Stashed changes
     void render(); // SRP: Handles rendering logic
 
     void switchDimension(); // State Management: Switches between normal and negative dimensions
     void handlePortalInteraction(const Map& map); // Dependency Injection: Interacts with the map
+<<<<<<< Updated upstream
+};
+>>>>>>> Stashed changes
+=======
 };
 >>>>>>> Stashed changes

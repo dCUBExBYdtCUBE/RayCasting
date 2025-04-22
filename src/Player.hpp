@@ -69,9 +69,15 @@ public:
 
     // Dash-related public methods
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     bool getIsDashing() const;
     float getDashCooldownPercent() const;  // Returns a value from 0 to 1 for UI display
 };
+=======
+    bool getIsDashing() const; // Encapsulation: Provides access to the dashing state
+    float getDashCooldownPercent() const; // Encapsulation: Returns cooldown percentage for UI display
+};
+>>>>>>> Stashed changes
 =======
     bool getIsDashing() const; // Encapsulation: Provides access to the dashing state
     float getDashCooldownPercent() const; // Encapsulation: Returns cooldown percentage for UI display

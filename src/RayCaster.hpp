@@ -122,8 +122,11 @@ public:
     void draw(sf::RenderWindow& window);
 
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     const std::vector<TargetHit>& getHitTargets() const { return hitTargets; }
 =======
+=======
+>>>>>>> Stashed changes
     sf::Color invertColor(const sf::Color& color);
 
     const std::vector<TargetHit>& getTargetHits() const { return hitTargets; }
@@ -141,7 +144,14 @@ public:
         return dashActive && (dashEffectTimer - dashStartTime < dashDuration);
     }
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 };
+=======
+
+    void setDistortionEffect(float amount);
+    void setColorInversion(bool enabled);
+};
+>>>>>>> Stashed changes
 =======
 
     void setDistortionEffect(float amount);

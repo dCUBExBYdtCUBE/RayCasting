@@ -245,12 +245,19 @@ float Player::getDashCooldownPercent() const
     return dashCooldownTimer / dashCooldown;
 }
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
 
 void Player::setPosition(const sf::Vector2f& position) {
     this->position = position; // Update the player's position
 
     // If the Player has a graphical representation (e.g., sf::Sprite), update it too
     // sprite.setPosition(position); // Uncomment if applicable
+<<<<<<< Updated upstream
+}
+>>>>>>> Stashed changes
+=======
 }
 >>>>>>> Stashed changes

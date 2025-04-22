@@ -202,7 +202,10 @@ bool Map::isHitTarget(int x, int y) const {
     return false;
 }
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 =======
+=======
+>>>>>>> Stashed changes
 
 // Add to Map.cpp
 bool Map::isPortal(int x, int y) const {
@@ -235,5 +238,9 @@ void Map::setupPortals() {
     
     // You can add more portals if needed
     addPortal(10, 10, sf::Vector2f(11.5f, 11.5f), sf::Vector2f(5.5f, 5.5f));
+<<<<<<< Updated upstream
+}
+>>>>>>> Stashed changes
+=======
 }
 >>>>>>> Stashed changes

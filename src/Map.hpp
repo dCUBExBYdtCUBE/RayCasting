@@ -15,6 +15,7 @@ struct Target {
 class Map {
 private:
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     int width;
     int height;
     std::vector<std::vector<int>> grid;
@@ -23,6 +24,8 @@ private:
 // In Map.hpp, define constants for clarity
     static const int EMPTY = 0;
 =======
+=======
+>>>>>>> Stashed changes
     int width;  // Encapsulation: Hides the map's dimensions
     int height; // Encapsulation: Hides the map's dimensions
     std::vector<std::vector<int>> grid; // Encapsulation: Stores the map's grid structure
@@ -31,6 +34,9 @@ private:
 
     // Constants for map elements
     static const int EMPTY = 0;           // Open/Closed Principle: Easy to extend with new types
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
 >>>>>>> Stashed changes
     static const int STANDARD_WALL = 1;
     static const int ENERGY_WALL = 2;
@@ -59,6 +65,7 @@ public:
     
     // Target-related methods
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     void addTarget(int x, int y, int points = 10);
     void removeTarget(int x, int y);
     const std::vector<Target>& getTargets() const;
@@ -69,6 +76,8 @@ public:
     bool isHitTarget(int x, int y) const;  // Check if target has been hit
 };
 =======
+=======
+>>>>>>> Stashed changes
     void addTarget(int x, int y, int points = 10); // Open/Closed Principle: Easy to add new targets
     void removeTarget(int x, int y);              // Encapsulation: Removes a target
     const std::vector<Target>& getTargets() const; // Encapsulation: Provides access to targets
@@ -85,5 +94,9 @@ public:
     
     // For map initialization
     void setupPortals(); // Factory Method: Initializes portals
+<<<<<<< Updated upstream
+};
+>>>>>>> Stashed changes
+=======
 };
 >>>>>>> Stashed changes
