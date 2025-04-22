@@ -9,14 +9,16 @@
  : window(sf::VideoMode({static_cast<unsigned int>(width), static_cast<unsigned int>(height)}), title),
    player(),
    map(20, 20),
-   raycaster(width, height),
    isRunning(true),
    score(0)
 {
-// Reset targets to initial state
- window.setFramerateLimit(60);
+    raycaster = new RayCaster(width, height);
+    textRenderer = new TextRenderer();
+    // Reset targets to initial state
+    window.setFramerateLimit(60);
 
- if (!textRenderer.initialize()) {
+    switchDimension();
+ if (!textRenderer->initialize()) {
     // Handle font loading error
     std::cerr << "Failed to initialize text renderer" << std::endl;
 }
@@ -25,16 +27,16 @@ map.resetTargets();
 
 // Create UI text elements
 // TRON-style cyan/blue for main title
-textRenderer.createText("title", "RAYCASTER GAME", "default", 24,
-    sf::Color(0, 255, 255), sf::Vector2f(width / 2 - 100, 10));
+textRenderer->createText("title", "RAYCASTER GAME", "default", 24,
+    colorManager.getTitleTextColor(), sf::Vector2f(width / 2 - 100, 10));
 
 // TRON-style white/blue for score
-textRenderer.createText("score", "SCORE: 0", "default", 20,
-    sf::Color(170, 230, 255), sf::Vector2f(10, 10));
+textRenderer->createText("score", "SCORE: 0", "default", 20,
+    colorManager.getScoreTextColor(), sf::Vector2f(10, 10));
 
 // TRON-style orange for controls (like the antagonist colors)
-textRenderer.createText("controls", "WASD: MOVE | ARROWS: TURN", "default", 16,
-    sf::Color(255, 150, 0), sf::Vector2f(10, height - 30));
+textRenderer->createText("controls", "WASD: MOVE | ARROWS: TURN", "default", 16,
+    colorManager.getControlsTextColor(), sf::Vector2f(10, height - 30));
 }
 
 void Game::run()
@@ -72,6 +74,7 @@ void Game::handleInput()
     player.handleInput(clock.getElapsedTime().asSeconds(), pressedKeys, map);
 }
 
+<<<<<<< Updated upstream
 void Game::update(float deltaTime)
 {
 
@@ -79,13 +82,66 @@ std::cout << "Current score: " << score << std::endl;
 
     player.update(deltaTime);
 
+=======
+Game::~Game() {
+    delete raycaster;
+    delete textRenderer;
+}
+
+
+void Game::switchDimension() {
+    inNegativeDimension = !inNegativeDimension;
+    colorManager.setNegativeDimension(inNegativeDimension);
+    // Other dimension switch logic
+}
+
+void Game::handlePortalInteraction(const Map& map) {
+    // Get the player's current position
+    int playerX = static_cast<int>(player.getPosition().x);
+    int playerY = static_cast<int>(player.getPosition().y);
+
+    
+
+    // Check if the player is on a portal
+    if (map.isPortal(playerX, playerY)) {
+        // Switch dimensions
+        switchDimension();
+
+        player.setTeleporting(true);
+
+        // Get the portal exit position
+        sf::Vector2f exitPosition = map.getPortalExit(inNegativeDimension);
+        std::cout << "Portal exit position: " << exitPosition.x << ", " << exitPosition.y << std::endl;
+
+        // Update the player's position to the portal exit
+        player.setPosition(exitPosition);
+
+        player.setTeleporting(false);
+
+        std::cout << "Player switched dimensions!" << std::endl;
+    }
+}
+
+void Game::update(float deltaTime) {
+    // Update player position
+>>>>>>> Stashed changes
     player.update(deltaTime);
+
+    handlePortalInteraction(map);
     
     // Cast rays and get scene information
-    raycaster.castRays(player, map);
+    raycaster->castRays(player, map);
     
     // Check for target hits and update score
+<<<<<<< Updated upstream
     const auto& hitTargets = raycaster.getHitTargets();
+=======
+    const auto& hitTargets = raycaster->getTargetHits();
+    
+    // Debug info
+    // std::cout << "Number of hit targets this frame: " << hitTargets.size() << std::endl;
+    
+>>>>>>> Stashed changes
     for (const auto& target : hitTargets) {
         if (target.isNewHit) {
             // Mark target as hit in the map
@@ -95,7 +151,7 @@ std::cout << "Current score: " << score << std::endl;
             score += target.points;
             
             // Update score display
-            textRenderer.updateText("score", "SCORE: " + std::to_string(score));
+            textRenderer->updateText("score", "SCORE: " + std::to_string(score));
         }
     }
 }
@@ -105,10 +161,10 @@ void Game::render()
     window.clear(sf::Color::Black);
     
     // Cast rays and render the view
-    raycaster.castRays(player, map);
+    raycaster->castRays(player, map);
     
-    raycaster.draw(window);
-    textRenderer.draw(window);
+    raycaster->draw(window);
+    textRenderer->draw(window);
     
     window.display();
 }

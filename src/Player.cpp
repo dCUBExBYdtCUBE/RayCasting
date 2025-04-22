@@ -3,6 +3,7 @@
 #include <SFML/Window/Keyboard.hpp>
 #include <cmath>
 #include "Map.hpp"
+#include <iostream>
 
 Player::Player()
     : position(5.0f, 5.0f),
@@ -150,6 +151,11 @@ void Player::update(float deltaTime)
 
 void Player::applyCollisionWithSliding(const sf::Vector2f& newPosition, const Map& map)
 {
+    
+    if (isTeleporting) {
+        position = newPosition; // Directly update position without collision checks
+        return;
+    }
     const float collisionBuffer = 0.2f;
 
     sf::Vector2f xMovement = position;
@@ -210,6 +216,10 @@ void Player::applyCollisionWithSliding(const sf::Vector2f& newPosition, const Ma
     }
 }
 
+void Player::setTeleporting(bool teleporting) {
+    isTeleporting = teleporting;
+}
+
 sf::Vector2f Player::getPosition() const
 {
     return position;
@@ -234,3 +244,13 @@ float Player::getDashCooldownPercent() const
 {
     return dashCooldownTimer / dashCooldown;
 }
+<<<<<<< Updated upstream
+=======
+
+void Player::setPosition(const sf::Vector2f& position) {
+    this->position = position; // Update the player's position
+
+    // If the Player has a graphical representation (e.g., sf::Sprite), update it too
+    // sprite.setPosition(position); // Uncomment if applicable
+}
+>>>>>>> Stashed changes

@@ -20,13 +20,8 @@ RayCaster::RayCaster(int screenWidth, int screenHeight)
     
     // Initialize wall colors
     // Cyberpunk/Tron color scheme
-wallColors = {
-    sf::Color(10, 10, 30),      // Type 0: Dark blue-black for floor (usually not used)
-    sf::Color(0, 210, 255),     // Type 1: Bright cyan for standard walls
-    sf::Color(255, 0, 150),     // Type 2: Neon pink for energy walls
-    sf::Color(0, 255, 120),     // Type 3: Electric green for data streams
-    sf::Color(255, 230, 0)      // Type 4: Bright yellow (if you add another wall type)
-};
+    ColorManager wallColors;
+
     
     // Initialize array for previous positions (for afterimages)
     for (int i = 0; i < 5; i++) {
@@ -396,6 +391,14 @@ void RayCaster::applyDashEffect(float dashProgress, float playerDirX, float play
     }
 }
 
+void RayCaster::setDistortionEffect(float amount) {
+    // Clamp between 0 and 1
+    distortionAmount = std::max(0.0f, std::min(1.0f, amount));
+}
+
+void RayCaster::setColorInversion(bool enabled) {
+    colorInversionEnabled = enabled;
+}
 // Simple motion blur that's less intensive
 void RayCaster::applySimpleMotionBlur(float dirX, float dirY, float strength)
 {
@@ -441,7 +444,7 @@ void RayCaster::applySimpleMotionBlur(float dirX, float dirY, float strength)
     }
 }
 void RayCaster::castRays(const Player& player, const Map& map)
-{
+{   
     int screenWidth = frameBuffer.getSize().x;
     int screenHeight = frameBuffer.getSize().y;
     
@@ -475,13 +478,13 @@ void RayCaster::castRays(const Player& player, const Map& map)
     }
     
     // Cyberpunk ceiling - dark with grid effect
-    sf::Color ceilingColor(5, 10, 25); // Very dark blue
+    sf::Color ceilingColor = wallColors.getCeilingColor(); // Very dark blue
     if ((int)(pos.x * 2 + 0.5) % 2 == 0 || (int)(pos.y * 2 + 0.5) % 2 == 0) {
         ceilingColor = sf::Color(10, 20, 40); // Slightly lighter for grid effect
     }
 
     // Cyberpunk floor - dark with grid lines
-    sf::Color floorColor(10, 15, 30); // Dark blue
+    sf::Color floorColor = wallColors.getFloorColor(); // Dark blue
     if ((int)(pos.x * 2 + 0.5) % 2 == 0 || (int)(pos.y * 2 + 0.5) % 2 == 0) {
         floorColor = sf::Color(0, 50, 80); // Brighter blue for grid lines
     }
@@ -601,10 +604,10 @@ void RayCaster::castRays(const Player& player, const Map& map)
         
         // Choose wall color based on wall type
         sf::Color color;
-        if (wallType < static_cast<int>(wallColors.size()))
-        {
-            color = wallColors[wallType];
-        }
+        // Assuming you have an instance of ColorManager named colorManager
+        if (wallType >= 0 && wallType < wallColors.getNumberOfWallColors()) {
+            color = wallColors.getWallColor(wallType);
+        } 
         else
         {
             color = sf::Color::Magenta; // Default for unknown wall types

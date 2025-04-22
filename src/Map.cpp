@@ -2,6 +2,7 @@
 #include "Map.hpp"
 #include <fstream>
 #include <iostream>
+#include <SFML/System.hpp>
 
 Map::Map(int width, int height)
     : width(width), height(height) {
@@ -49,6 +50,8 @@ Map::Map(int width, int height)
     addTarget(8, 3, 10);  // x, y, points
     addTarget(15, 8, 20);
     addTarget(10, 15, 30);
+
+    setupPortals();
 }
 
 void Map::loadFromFile(const std::string& filename) {
@@ -198,3 +201,39 @@ bool Map::isHitTarget(int x, int y) const {
     }
     return false;
 }
+<<<<<<< Updated upstream
+=======
+
+// Add to Map.cpp
+bool Map::isPortal(int x, int y) const {
+    // Check if this position contains a portal tile
+    if (x >= 0 && x < width && y >= 0 && y < height) {
+        return grid[y][x] == PORTAL;
+    }
+    return false;
+}
+
+void Map::addPortal(int x, int y, sf::Vector2f normalExit, sf::Vector2f negativeExit) {
+    // Set this position as a portal
+    if (x >= 0 && x < width && y >= 0 && y < height) {
+        grid[y][x] = PORTAL;
+        portalLocations.push_back({static_cast<float>(x), static_cast<float>(y)});
+        portalExitNormal = normalExit;
+        portalExitNegative = negativeExit;
+    }
+}
+
+sf::Vector2f Map::getPortalExit(bool toNegativeDimension) const {
+    // Return the appropriate exit position
+    return toNegativeDimension ? portalExitNegative : portalExitNormal;
+}
+
+void Map::setupPortals() {
+    // Example: Set up a portal at position (10, 10) 
+    // with exits at (11, 11) for normal dimension and (5, 5) for negative dimension
+    addPortal(10, 10, {11.5f, 11.5f}, {5.5f, 5.5f});
+    
+    // You can add more portals if needed
+    addPortal(10, 10, sf::Vector2f(11.5f, 11.5f), sf::Vector2f(5.5f, 5.5f));
+}
+>>>>>>> Stashed changes

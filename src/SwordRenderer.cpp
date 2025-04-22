@@ -16,7 +16,7 @@ void SwordRenderer::draw(sf::Image& frameBuffer, const Player& player)
     int pommelHeight = swordHeight * 0.1f;
 
     int edgeThickness = 3; // thickness of the neon edge
-    sf::Color neonCyan(0, 255, 255);
+    sf::Color neonCyan = colorManager.getSwordColor(); // Neon cyan color
 
     auto drawHollowRect = [&](int x, int y, int w, int h) {
         // Top and Bottom edges

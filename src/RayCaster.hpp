@@ -4,6 +4,55 @@
 #include "Map.hpp"
 #include <vector>
 #include "SwordRenderer.hpp"
+#include "RayCaster.hpp"
+#include <SFML/System/Clock.hpp>
+#include "TextRenderer.hpp"
+#include "ColorManager.hpp"
+
+// The Game class manages the main game loop and delegates specific tasks to other components
+class Game {
+private:
+    sf::RenderWindow window;      // Encapsulation: Hides rendering details
+    Player player;                // Composition: Player object handles movement and camera
+    Map map;                      // Composition: Map object contains the level grid
+    RayCaster* raycaster;         // Composition: RayCaster handles 3D rendering
+    sf::Clock clock;              // Encapsulation: Manages timing and delta time calculation
+    bool isRunning;               // Encapsulation: Controls the game loop
+    sf::Clock targetRespawnClock; // Encapsulation: Manages target respawn timing
+    int score;                    // Encapsulation: Tracks the player's score
+    TextRenderer* textRenderer;   // Composition: Handles UI text rendering
+    
+    bool inNegativeDimension = false; // State Management: Tracks the current dimension
+    Map normalMap;               // Composition: Stores the normal dimension map
+    Map negativeMap;             // Composition: Stores the negative dimension map
+    Map* currentMap;             // State Management: Pointer to the active map
+
+    // Portal handling
+    bool portalTransitionActive = false; // Encapsulation: Tracks if a portal transition is active
+    float portalTransitionTimer = 0.0f;  // Encapsulation: Timer for portal transitions
+    float portalTransitionDuration = 1.0f; // Encapsulation: Duration of portal transitions
+    ColorManager colorManager; // Composition: Manages colors for UI and game elements
+
+public:
+    // Constructor initializes the game with window dimensions and title
+    Game(int width, int height, const std::string& title);
+    ~Game();
+    
+    // Main game loop
+    void run(); // Single Responsibility Principle: Manages the game loop
+    
+    // Process input events from keyboard/mouse
+    void handleInput(); // SRP: Handles input events
+    
+    // Update game state (player position, etc.) based on elapsed time
+    void update(float deltaTime); // SRP: Updates the game state
+    
+    // Render the current frame
+    void render(); // SRP: Handles rendering logic
+
+    void switchDimension(); // State Management: Switches between normal and negative dimensions
+    void handlePortalInteraction(const Map& map); // Dependency Injection: Interacts with the map
+};
 
 struct RayHit {
     int mapX, mapY;      // Map coordinates where hit occurred
@@ -26,7 +75,7 @@ private:
     sf::Image frameBuffer;
     sf::Texture frameTexture;
     sf::Sprite frameSprite;
-    std::vector<sf::Color> wallColors;
+    ColorManager wallColors;
     std::vector<sf::Vector2f> previousPlayerPositions;
     SwordRenderer swordRenderer;
     
@@ -61,6 +110,10 @@ private:
     // Helper functions for animation
     float easeInOutCubic(float t);
     float easeOutQuart(float t);
+
+    float distortionAmount = 0.0f;
+    bool colorInversionEnabled = false;
+    
     
 public:
     // Your existing public methods
@@ -68,7 +121,13 @@ public:
     void castRays(const Player& player, const Map& map);
     void draw(sf::RenderWindow& window);
 
+<<<<<<< Updated upstream
     const std::vector<TargetHit>& getHitTargets() const { return hitTargets; }
+=======
+    sf::Color invertColor(const sf::Color& color);
+
+    const std::vector<TargetHit>& getTargetHits() const { return hitTargets; }
+>>>>>>> Stashed changes
     void clearHitTargets() { hitTargets.clear(); }
     
     // Add method to start a dash effect
@@ -81,4 +140,11 @@ public:
     bool isDashActive() const {
         return dashActive && (dashEffectTimer - dashStartTime < dashDuration);
     }
+<<<<<<< Updated upstream
 };
+=======
+
+    void setDistortionEffect(float amount);
+    void setColorInversion(bool enabled);
+};
+>>>>>>> Stashed changes
