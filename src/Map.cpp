@@ -139,10 +139,12 @@ int Map::getHeight() const {
 
 // Target-related methods
 void Map::addTarget(int x, int y, int points) {
-    // Only add target if position is valid (not a wall and within bounds)
     if (x >= 0 && x < width && y >= 0 && y < height && !isWall(x, y)) {
         Target newTarget{x, y, points, false};
         targets.push_back(newTarget);
+        std::cout << "Added target at (" << x << ", " << y << ") with " << points << " points." << std::endl;
+    } else {
+        std::cerr << "Failed to add target at (" << x << ", " << y << "). Position invalid or is a wall." << std::endl;
     }
 }
 
@@ -163,49 +165,53 @@ bool Map::hitTarget(int x, int y) {
     for (auto& target : targets) {
         if (target.x == x && target.y == y && !target.hit) {
             target.hit = true;
+            std::cout << "Target hit at (" << x << ", " << y << "). Points: " << target.points << std::endl;
             return true;
         }
     }
+    std::cerr << "No target found to hit at (" << x << ", " << y << ")." << std::endl;
     return false;
 }
 
 int Map::getTargetPoints(int x, int y) const {
     for (const auto& target : targets) {
         if (target.x == x && target.y == y) {
+            // std::cout << "Target points at (" << x << ", " << y << "): " << target.points << std::endl;
             return target.points;
         }
     }
+    // std::cerr << "No target found at (" << x << ", " << y << "). Returning 0 points." << std::endl;
     return 0;
 }
 
 void Map::resetTargets() {
     for (auto& target : targets) {
         target.hit = false;
+        std::cout << "Reset target at (" << target.x << ", " << target.y << ")." << std::endl;
     }
 }
 
 bool Map::isTarget(int x, int y) const {
     for (const auto& target : targets) {
         if (target.x == x && target.y == y) {
+            // std::cout << "Position (" << x << ", " << y << ") is a target." << std::endl;
             return true;
         }
     }
+    // std::cout << "Position (" << x << ", " << y << ") is not a target." << std::endl;
     return false;
 }
 
 bool Map::isHitTarget(int x, int y) const {
     for (const auto& target : targets) {
         if (target.x == x && target.y == y) {
+            // std::cout << "Position (" << x << ", " << y << ") is a hit target: " << (target.hit ? "Yes" : "No") << std::endl;
             return target.hit;
         }
     }
+    // std::cout << "Position (" << x << ", " << y << ") is not a target." << std::endl;
     return false;
 }
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-=======
->>>>>>> Stashed changes
 
 // Add to Map.cpp
 bool Map::isPortal(int x, int y) const {
@@ -217,12 +223,17 @@ bool Map::isPortal(int x, int y) const {
 }
 
 void Map::addPortal(int x, int y, sf::Vector2f normalExit, sf::Vector2f negativeExit) {
-    // Set this position as a portal
     if (x >= 0 && x < width && y >= 0 && y < height) {
-        grid[y][x] = PORTAL;
+        grid[y][x] = PORTAL; // Mark as portal
         portalLocations.push_back({static_cast<float>(x), static_cast<float>(y)});
         portalExitNormal = normalExit;
         portalExitNegative = negativeExit;
+
+        // Add portal as a target
+        addTarget(x, y, 50); // Example: Assign 50 points to the portal target
+        std::cout << "Added portal at (" << x << ", " << y << ") with exits at normal (" 
+                  << normalExit.x << ", " << normalExit.y << ") and negative (" 
+                  << negativeExit.x << ", " << negativeExit.y << ")." << std::endl;
     }
 }
 
@@ -238,9 +249,4 @@ void Map::setupPortals() {
     
     // You can add more portals if needed
     addPortal(10, 10, sf::Vector2f(11.5f, 11.5f), sf::Vector2f(5.5f, 5.5f));
-<<<<<<< Updated upstream
 }
->>>>>>> Stashed changes
-=======
-}
->>>>>>> Stashed changes

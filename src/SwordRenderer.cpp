@@ -16,7 +16,7 @@ void SwordRenderer::draw(sf::Image& frameBuffer, const Player& player)
     int pommelHeight = swordHeight * 0.1f;
 
     int edgeThickness = 3; // thickness of the neon edge
-    sf::Color neonCyan = colorManager.getSwordColor(); // Neon cyan color
+    sf::Color swordColor = colorManager.getSwordColor(); // Neon cyan color
 
     auto drawHollowRect = [&](int x, int y, int w, int h) {
         // Top and Bottom edges
@@ -26,13 +26,13 @@ void SwordRenderer::draw(sf::Image& frameBuffer, const Player& player)
                 int pxTop = x + dx;
                 int pyTop = y + i;
                 if (pxTop >= 0 && pxTop < screenWidth && pyTop >= 0 && pyTop < screenHeight)
-                    frameBuffer.setPixel({static_cast<unsigned>(pxTop), static_cast<unsigned>(pyTop)}, neonCyan);
+                    frameBuffer.setPixel({static_cast<unsigned>(pxTop), static_cast<unsigned>(pyTop)}, swordColor);
 
                 // Bottom edge
                 int pxBot = x + dx;
                 int pyBot = y + h - 1 - i;
                 if (pxBot >= 0 && pxBot < screenWidth && pyBot >= 0 && pyBot < screenHeight)
-                    frameBuffer.setPixel({static_cast<unsigned>(pxBot), static_cast<unsigned>(pyBot)}, neonCyan);
+                    frameBuffer.setPixel({static_cast<unsigned>(pxBot), static_cast<unsigned>(pyBot)}, swordColor);
             }
         }
 
@@ -43,13 +43,13 @@ void SwordRenderer::draw(sf::Image& frameBuffer, const Player& player)
                 int pxLeft = x + i;
                 int pyLeft = y + dy;
                 if (pxLeft >= 0 && pxLeft < screenWidth && pyLeft >= 0 && pyLeft < screenHeight)
-                    frameBuffer.setPixel({static_cast<unsigned>(pxLeft), static_cast<unsigned>(pyLeft)}, neonCyan);
+                    frameBuffer.setPixel({static_cast<unsigned>(pxLeft), static_cast<unsigned>(pyLeft)}, swordColor);
 
                 // Right edge
                 int pxRight = x + w - 1 - i;
                 int pyRight = y + dy;
                 if (pxRight >= 0 && pxRight < screenWidth && pyRight >= 0 && pyRight < screenHeight)
-                    frameBuffer.setPixel({static_cast<unsigned>(pxRight), static_cast<unsigned>(pyRight)}, neonCyan);
+                    frameBuffer.setPixel({static_cast<unsigned>(pxRight), static_cast<unsigned>(pyRight)}, swordColor);
             }
         }
     };
@@ -63,3 +63,8 @@ void SwordRenderer::draw(sf::Image& frameBuffer, const Player& player)
     // Draw Pommel (bottom part)
     drawHollowRect(swordPosX + swordWidth * 0.4f, swordPosY + bladeHeight + hiltHeight, swordWidth * 0.2f, pommelHeight);
 }
+
+// void SwordRenderer::updateColor(const sf::Color& newColor) {
+//     // Update the color used for rendering the sword
+//     swordColor = newColor;
+// }

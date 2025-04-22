@@ -3,9 +3,12 @@
 #include "Player.hpp"
 #include "Map.hpp"
 #include "RayCaster.hpp"
-#include <SFML/System/Clock.hpp>
 #include "TextRenderer.hpp"
 #include "ColorManager.hpp"
+
+// Forward declarations
+class RayCaster;
+class TextRenderer;
 
 // The Game class manages the main game loop and delegates specific tasks to other components
 class Game {
@@ -32,41 +35,15 @@ private:
     ColorManager colorManager; // Composition: Manages colors for UI and game elements
 
 public:
-    // Constructor initializes the game with window dimensions and title
     Game(int width, int height, const std::string& title);
     ~Game();
-    
-    // Main game loop
-    void run(); // Single Responsibility Principle: Manages the game loop
-    
-    // Process input events from keyboard/mouse
-    void handleInput(); // SRP: Handles input events
-    
-    // Update game state (player position, etc.) based on elapsed time
-    void update(float deltaTime); // SRP: Updates the game state
-<<<<<<< Updated upstream
-    
-    void updateScore(int points);
-    
-    // Update UI elements
-    void updateUI();
-    
-    // Render the current frame
-<<<<<<< Updated upstream
-    void render();
-};
-=======
-=======
-    
-    // Render the current frame
->>>>>>> Stashed changes
-    void render(); // SRP: Handles rendering logic
 
+    void run(); // Single Responsibility Principle: Manages the game loop
+    void handleInput(); // SRP: Handles input events
+    void update(float deltaTime); // SRP: Updates the game state
+    void render(); // SRP: Handles rendering logic
     void switchDimension(); // State Management: Switches between normal and negative dimensions
     void handlePortalInteraction(const Map& map); // Dependency Injection: Interacts with the map
-<<<<<<< Updated upstream
 };
->>>>>>> Stashed changes
-=======
-};
->>>>>>> Stashed changes
+
+

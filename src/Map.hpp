@@ -14,30 +14,13 @@ struct Target {
 
 class Map {
 private:
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    int width;
-    int height;
-    std::vector<std::vector<int>> grid;
-    std::vector<Target> targets;  // Collection of targets
-    // In Map.hpp, define constants for clarity
-// In Map.hpp, define constants for clarity
-    static const int EMPTY = 0;
-=======
-=======
->>>>>>> Stashed changes
     int width;  // Encapsulation: Hides the map's dimensions
     int height; // Encapsulation: Hides the map's dimensions
     std::vector<std::vector<int>> grid; // Encapsulation: Stores the map's grid structure
     std::vector<Target> targets;  // Encapsulation: Manages targets on the map
-    int score; // Encapsulation: Tracks the score related to targets
 
     // Constants for map elements
     static const int EMPTY = 0;           // Open/Closed Principle: Easy to extend with new types
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-=======
->>>>>>> Stashed changes
     static const int STANDARD_WALL = 1;
     static const int ENERGY_WALL = 2;
     static const int DATA_STREAM = 3;
@@ -64,20 +47,6 @@ public:
     int getHeight() const;              // Encapsulation: Provides map height
     
     // Target-related methods
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    void addTarget(int x, int y, int points = 10);
-    void removeTarget(int x, int y);
-    const std::vector<Target>& getTargets() const;
-    bool hitTarget(int x, int y);  // Returns true if successfully hit a target
-    int getTargetPoints(int x, int y) const;  // Get points value of a target
-    void resetTargets();  // Reset all targets to unhit state
-    bool isTarget(int x, int y) const;  // Check if location has a target
-    bool isHitTarget(int x, int y) const;  // Check if target has been hit
-};
-=======
-=======
->>>>>>> Stashed changes
     void addTarget(int x, int y, int points = 10); // Open/Closed Principle: Easy to add new targets
     void removeTarget(int x, int y);              // Encapsulation: Removes a target
     const std::vector<Target>& getTargets() const; // Encapsulation: Provides access to targets
@@ -94,9 +63,5 @@ public:
     
     // For map initialization
     void setupPortals(); // Factory Method: Initializes portals
-<<<<<<< Updated upstream
 };
->>>>>>> Stashed changes
-=======
-};
->>>>>>> Stashed changes
+

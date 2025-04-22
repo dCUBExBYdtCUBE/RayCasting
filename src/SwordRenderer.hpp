@@ -13,4 +13,6 @@ public:
 
     // Composition: Uses ColorManager to manage colors for the sword
     ColorManager colorManager; // Dependency Inversion Principle (DIP): Depends on an abstraction for color management
+    
+void updateColor(const sf::Color& newColor);
 };

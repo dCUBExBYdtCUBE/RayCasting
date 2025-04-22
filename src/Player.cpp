@@ -4,6 +4,7 @@
 #include <cmath>
 #include "Map.hpp"
 #include <iostream>
+#include <iostream>
 
 Player::Player()
     : position(5.0f, 5.0f),
@@ -21,13 +22,12 @@ Player::Player()
 {
 }
 
-void Player::checkTargetHits(Player& player, Map& map) {
+int Player::checkTargetHits(Player& player, Map& map) {
+    int pointsEarned = 0;
+    
     // Only check for hits if the player is currently dashing
-    if (player.getIsDashing()) {
+    if (isDashing) {
         // Get player position
-        sf::Vector2f pos = player.getPosition();
-        
-        // Check targets within a small radius around the player
         float hitRadius = 1.0f; // Adjust this value based on testing
         
         // Get all targets
@@ -35,22 +35,22 @@ void Player::checkTargetHits(Player& player, Map& map) {
         
         for (const auto& target : targets) {
             // Calculate distance from player to target
-            float dx = pos.x - target.x;
-            float dy = pos.y - target.y;
+            float dx = position.x - target.x;
+            float dy = position.y - target.y;
             float distSquared = dx*dx + dy*dy;
             
             // If player is close enough and target not hit yet, register a hit
             if (distSquared < hitRadius*hitRadius) {
                 if (map.hitTarget(target.x, target.y)) {
-                    // Target was hit successfully - add points, play sound, etc.
-                    player.addScore(map.getTargetPoints(target.x, target.y));
-                    
-                    // Optional: add visual or audio feedback
-                    // playSound("target_hit.wav");
+                    // Target was hit successfully - add points
+                    int targetPoints = map.getTargetPoints(target.x, target.y);
+                    pointsEarned += targetPoints;
+                    std::cout << "Target hit! Score increased by " << targetPoints << std::endl;
                 }
             }
         }
     }
+    return pointsEarned;
 }
 
 void Player::handleInput(float deltaTime, const sf::Keyboard::Key pressedKeys[], const Map& map) {
@@ -220,6 +220,8 @@ void Player::setTeleporting(bool teleporting) {
     isTeleporting = teleporting;
 }
 
+
+
 sf::Vector2f Player::getPosition() const
 {
     return position;
@@ -244,20 +246,9 @@ float Player::getDashCooldownPercent() const
 {
     return dashCooldownTimer / dashCooldown;
 }
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-=======
->>>>>>> Stashed changes
 
 void Player::setPosition(const sf::Vector2f& position) {
     this->position = position; // Update the player's position
 
-    // If the Player has a graphical representation (e.g., sf::Sprite), update it too
-    // sprite.setPosition(position); // Uncomment if applicable
-<<<<<<< Updated upstream
 }
->>>>>>> Stashed changes
-=======
-}
->>>>>>> Stashed changes
+

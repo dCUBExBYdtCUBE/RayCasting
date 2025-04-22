@@ -3,6 +3,10 @@
 #include <SFML/Window/Event.hpp>
 #include <SFML/Graphics.hpp>
 #include <iostream>
+#include "RayCaster.hpp"
+#include "TextRenderer.hpp"
+#include "Game.hpp"
+
  // add this to Game class
 
  Game::Game(int width, int height, const std::string& title)
@@ -17,7 +21,7 @@
     // Reset targets to initial state
     window.setFramerateLimit(60);
 
-    switchDimension();
+    // switchDimension();
  if (!textRenderer->initialize()) {
     // Handle font loading error
     std::cerr << "Failed to initialize text renderer" << std::endl;
@@ -74,28 +78,25 @@ void Game::handleInput()
     player.handleInput(clock.getElapsedTime().asSeconds(), pressedKeys, map);
 }
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-void Game::update(float deltaTime)
-{
-
-std::cout << "Current score: " << score << std::endl;
-
-    player.update(deltaTime);
-
-=======
-=======
->>>>>>> Stashed changes
 Game::~Game() {
     delete raycaster;
     delete textRenderer;
 }
 
-
 void Game::switchDimension() {
+    // Toggle the dimension state
     inNegativeDimension = !inNegativeDimension;
+
+    // Update the color manager for the new dimension
     colorManager.setNegativeDimension(inNegativeDimension);
-    // Other dimension switch logic
+
+    // Reset targets only when switching dimensions
+    map.resetTargets();
+
+    // Debug message to confirm dimension switch
+    std::cout << "Switched to " << (inNegativeDimension ? "Negative" : "Normal") << " Dimension" << std::endl;
+
+    // Other dimension switch logic (if any)
 }
 
 void Game::handlePortalInteraction(const Map& map) {
@@ -123,31 +124,37 @@ void Game::handlePortalInteraction(const Map& map) {
 
         std::cout << "Player switched dimensions!" << std::endl;
     }
-}
+};
 
 void Game::update(float deltaTime) {
     // Update player position
->>>>>>> Stashed changes
     player.update(deltaTime);
 
     handlePortalInteraction(map);
     
+    // Add this line to check for target hits through player movement/dash
+    if (player.getIsDashing()) {
+        // Modified to directly pass score updates to the game
+        int newPoints = player.checkTargetHits(player, map);
+        if (newPoints > 0) {
+            // Increment score
+            score += newPoints;
+            
+            // Update score display - make sure we're actually updating the text
+            std::string scoreText = "SCORE: " + std::to_string(score);
+            textRenderer->updateText("score", scoreText);
+            
+            // Debug print
+            std::cout << "Game score updated to: " << score << ", Text: " << scoreText << std::endl;
+        }
+    }
+    
     // Cast rays and get scene information
     raycaster->castRays(player, map);
     
-    // Check for target hits and update score
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-    const auto& hitTargets = raycaster.getHitTargets();
-=======
-=======
->>>>>>> Stashed changes
+    // Check for target hits from raycaster and update score
     const auto& hitTargets = raycaster->getTargetHits();
     
-    // Debug info
-    // std::cout << "Number of hit targets this frame: " << hitTargets.size() << std::endl;
-    
->>>>>>> Stashed changes
     for (const auto& target : hitTargets) {
         if (target.isNewHit) {
             // Mark target as hit in the map
@@ -156,8 +163,12 @@ void Game::update(float deltaTime) {
             // Increment score
             score += target.points;
             
-            // Update score display
-            textRenderer->updateText("score", "SCORE: " + std::to_string(score));
+            // Important: Update score display with the new value
+            std::string scoreText = "SCORE: " + std::to_string(score);
+            textRenderer->updateText("score", scoreText);
+            
+            // Debug print
+            std::cout << "Game score updated to: " << score << " (from raycaster)" << std::endl;
         }
     }
 }

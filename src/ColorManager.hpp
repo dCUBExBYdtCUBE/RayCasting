@@ -23,7 +23,7 @@ class ColorManager {
         
         ColorPalette normalPalette; // Encapsulation: Hides palette details
         ColorPalette negativePalette; // Encapsulation: Hides palette details
-        bool useNegativePalette = true; // Strategy Pattern: Determines which palette to use
+        bool useNegativePalette = false; // Strategy Pattern: Determines which palette to use
         
     public:
         ColorManager() {
@@ -64,7 +64,7 @@ class ColorManager {
         }
         
         sf::Color invertColor(const sf::Color& color) const {
-            // DRY Principle: Reuses logic for inverting colors
+            // DRY(Don't Repeat Yourself) Principle: Reuses logic for inverting colors
             return sf::Color(255 - color.r, 255 - color.g, 255 - color.b, color.a);
         }
         
