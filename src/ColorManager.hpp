@@ -2,6 +2,19 @@
 #include <SFML/Graphics.hpp>
 #include <iostream>
 
+/*
+* SOLID Principles:
+* - Single Responsibility Principle (SRP): Manages only color-related operations
+* - Open/Closed Principle (OCP): New color schemes can be added without modification
+* - Interface Segregation Principle (ISP): Provides focused color management interfaces
+*
+* GRASP Patterns:
+* - Information Expert: Manages all color-related data and operations
+* - Creator: Creates and manages color palettes
+* - Pure Fabrication: Provides specialized color management service
+* - Protected Variations: Encapsulates color implementation details
+*/
+
 // Add this to a header file, perhaps a new ColorManager.hpp
 class ColorManager {
     private:
